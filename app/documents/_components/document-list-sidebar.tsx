@@ -7,7 +7,8 @@ import {
   MoreVertical,
   Trash2,
   Edit3,
-  Calendar
+  Calendar,
+  LogOut
 } from "lucide-react"
 import { SelectDocument } from "@/db/schema/documents-schema"
 import {
@@ -35,6 +36,7 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
+import { SignOutButton } from "@clerk/nextjs"
 
 /*
 <ai_context>
@@ -211,14 +213,26 @@ export default function DocumentListSidebar({
             <FileText className="size-5 text-blue-600" />
             Documents
           </h2>
-          <Button
-            onClick={() => setIsCreating(true)}
-            size="sm"
-            className="bg-blue-600 text-white hover:bg-blue-700"
-            disabled={creatingDocument}
-          >
-            <Plus className="size-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsCreating(true)}
+              size="sm"
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              disabled={creatingDocument}
+            >
+              <Plus className="size-4" />
+            </Button>
+            <SignOutButton>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                title="Sign Out"
+              >
+                <LogOut className="size-4" />
+              </Button>
+            </SignOutButton>
+          </div>
         </div>
 
         {/* New document creation */}
