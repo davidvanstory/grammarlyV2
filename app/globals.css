@@ -89,3 +89,12 @@ Global styles for the app.
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .ltr {
+    direction: ltr !important;
+    text-align: left !important;
+    unicode-bidi: embed !important;
+    writing-mode: horizontal-tb !important;
+  }
+}

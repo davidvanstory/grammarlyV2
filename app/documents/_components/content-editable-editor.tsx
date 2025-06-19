@@ -69,6 +69,41 @@ export default function ContentEditableEditor({
     }
   }, [document])
 
+  // Update editor content when content state changes
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerText !== content) {
+      console.log("📝 Updating editor DOM content, length:", content.length)
+      // Preserve cursor position
+      const selection = window.getSelection()
+      let cursorPosition = 0
+
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0)
+        cursorPosition = range.startOffset
+      }
+
+      // Set the content as plain text to avoid HTML issues
+      editorRef.current.innerText = content
+
+      // Restore cursor position
+      if (selection && editorRef.current.firstChild) {
+        try {
+          const range = window.document.createRange()
+          const textNode = editorRef.current.firstChild
+          const maxOffset = textNode.textContent?.length || 0
+          const safeOffset = Math.min(cursorPosition, maxOffset)
+
+          range.setStart(textNode, safeOffset)
+          range.setEnd(textNode, safeOffset)
+          selection.removeAllRanges()
+          selection.addRange(range)
+        } catch (error) {
+          console.log("📝 Could not restore cursor position:", error)
+        }
+      }
+    }
+  }, [content])
+
   // Save function
   const saveDocument = useCallback(
     async (contentToSave?: string, titleToSave?: string) => {
@@ -331,35 +366,83 @@ export default function ContentEditableEditor({
           ref={editorRef}
           contentEditable
           suppressContentEditableWarning
-          className="prose prose-slate prose-lg mx-auto min-h-full w-full max-w-4xl focus:outline-none"
+          dir="ltr"
+          className="prose prose-slate prose-lg ltr mx-auto min-h-full w-full max-w-4xl focus:outline-none"
           style={{
             lineHeight: "1.8",
             fontSize: "16px",
-            fontFamily: "system-ui, -apple-system, sans-serif"
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            direction: "ltr",
+            textAlign: "left",
+            unicodeBidi: "embed",
+            writingMode: "horizontal-tb"
           }}
           onInput={e => {
             const target = e.target as HTMLDivElement
-            handleContentChange(target.textContent || "")
+            const newContent = target.innerHTML || ""
+            console.log(
+              "📝 Content input detected, HTML length:",
+              newContent.length
+            )
+            // Convert HTML to plain text for storage but preserve formatting
+            const plainText = target.innerText || ""
+            handleContentChange(plainText)
           }}
           onPaste={e => {
+            console.log("📝 Paste event detected")
             // Handle paste as plain text to avoid formatting issues
             e.preventDefault()
             const text = e.clipboardData.getData("text/plain")
-            if (typeof window !== "undefined" && window.document.execCommand) {
-              window.document.execCommand("insertText", false, text)
-            } else {
-              // Fallback for modern browsers
+            console.log("📝 Pasting text:", text.substring(0, 50) + "...")
+
+            // Insert text at cursor position
+            const selection = window.getSelection()
+            if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0)
+              range.deleteContents()
+
+              // Create text node and insert
+              const textNode = window.document.createTextNode(text)
+              range.insertNode(textNode)
+
+              // Move cursor to end of inserted text
+              range.setStartAfter(textNode)
+              range.setEndAfter(textNode)
+              selection.removeAllRanges()
+              selection.addRange(range)
+
+              // Trigger content change
+              const target = e.target as HTMLDivElement
+              const plainText = target.innerText || ""
+              handleContentChange(plainText)
+            }
+          }}
+          onKeyDown={e => {
+            console.log("📝 Key pressed:", e.key)
+            // Handle Enter key to create new lines properly
+            if (e.key === "Enter") {
+              e.preventDefault()
               const selection = window.getSelection()
               if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0)
+                const br = window.document.createElement("br")
                 range.deleteContents()
-                range.insertNode(window.document.createTextNode(text))
-                range.collapse(false)
+                range.insertNode(br)
+                range.setStartAfter(br)
+                range.setEndAfter(br)
+                selection.removeAllRanges()
+                selection.addRange(range)
+
+                // Trigger content change
+                const target = e.target as HTMLDivElement
+                const plainText = target.innerText || ""
+                handleContentChange(plainText)
               }
             }
           }}
-          dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, "<br>") }}
-        />
+        >
+          {/* Content will be set via useEffect instead of dangerouslySetInnerHTML */}
+        </div>
 
         {content.trim() === "" && (
           <div className="prose prose-slate prose-lg pointer-events-none absolute inset-6 text-slate-400">
