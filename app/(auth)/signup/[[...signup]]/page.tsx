@@ -15,7 +15,7 @@ export default function SignUpPage() {
 
   return (
     <SignUp
-      forceRedirectUrl="/todo"
+      forceRedirectUrl="/med-writer"
       appearance={{ baseTheme: theme === "dark" ? dark : undefined }}
     />
   )
