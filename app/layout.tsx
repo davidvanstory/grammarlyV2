@@ -32,12 +32,25 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { userId } = await auth()
+  let userId: string | null = null
+
+  try {
+    const authResult = await auth()
+    userId = authResult.userId
+  } catch (error) {
+    console.error("Auth error in root layout:", error)
+    // Continue without auth - let individual pages handle auth as needed
+  }
 
   if (userId) {
-    const profileRes = await getProfileByUserIdAction(userId)
-    if (!profileRes.isSuccess) {
-      await createProfileAction({ userId })
+    try {
+      const profileRes = await getProfileByUserIdAction(userId)
+      if (!profileRes.isSuccess) {
+        await createProfileAction({ userId })
+      }
+    } catch (error) {
+      console.error("Profile creation error:", error)
+      // Continue even if profile creation fails
     }
   }
 
