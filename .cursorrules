@@ -6,6 +6,8 @@ Write the complete code for every step. Do not get lazy.
 
 Your goal is to completely finish whatever I ask for.
 
+We are building an AI-first codebase, which means it needs to be modular, scalable, and easy to understand. The file structure should be highly navigable, and the code should be well-organized and easy to read.
+
 You will see <ai_context> tags in the code. These are context tags that you should use to help you understand the codebase.
 
 ## Overview
