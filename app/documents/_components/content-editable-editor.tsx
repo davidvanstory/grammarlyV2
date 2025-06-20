@@ -485,7 +485,6 @@ export default function ContentEditableEditor({
   const handleContentChange = (newContent: string) => {
     console.log("📝 Content changed, length:", newContent.length)
     console.log("📝 Content is empty:", newContent.trim() === "")
-    console.log("📝 Placeholder should be visible:", newContent.trim() === "")
     setContent(newContent)
     setHasUnsavedChanges(true)
     debouncedSave()
@@ -782,31 +781,6 @@ export default function ContentEditableEditor({
           onErrorClick={handleErrorClick}
           onErrorHover={handleErrorHover}
         />
-
-        {content.trim() === "" && (
-          <div className="prose prose-slate prose-lg pointer-events-none absolute inset-x-6 top-6 text-slate-400 transition-opacity duration-200 ease-in-out">
-            <div className="mx-auto max-w-4xl">
-              <p className="mb-4">
-                Start writing your medical document here...
-              </p>
-              <p className="mb-3 text-sm font-medium">
-                Tips for medical writing with Phase 4 enhancements:
-              </p>
-              <ul className="space-y-1 text-sm">
-                <li>
-                  ✨ Advanced position tracking for precise error highlighting
-                </li>
-                <li>
-                  🔍 Real-time text processing with medical terminology
-                  awareness
-                </li>
-                <li>📍 Mathematical cursor position management</li>
-                <li>🎯 Intelligent text change detection with debouncing</li>
-                <li>Auto-save is enabled every 30 seconds</li>
-              </ul>
-            </div>
-          </div>
-        )}
 
         {/* Phase 4 & 5 Debug Info (remove in production) */}
         {process.env.NODE_ENV === "development" && (
