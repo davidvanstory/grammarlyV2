@@ -1,0 +1,114 @@
+# Dependencies and package managers
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Database and migrations
+db/migrations/
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment and config
+.env*
+!.env.example
+.vercel/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git and version control
+.git/
+.gitignore
+
+# Test files and results
+coverage/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+test/
+tests/
+__tests__/
+docs/test/results/
+
+# Logs and debug
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/cache/
+
+# OS generated files
+Thumbs.db
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Documentation that doesn't need to be in codebase export
+README.md
+LICENSE
+license
+*.md
+docs/
+
+# Public assets (usually not needed for code analysis)
+public/
+
+# Husky and git hooks
+.husky/
+
+# Repomix output files
+repomix-output.*
+codebase.txt
+codebase.xml
+codebase.md
+
+# Large or binary files
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# TypeScript declaration files (usually auto-generated)
+*.d.ts
+!types/*.d.ts
+
+# ESLint and Prettier
+.eslintcache
+.prettierignore 

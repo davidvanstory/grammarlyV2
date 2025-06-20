@@ -18,7 +18,10 @@
     "prepare": "husky install",
     "test:grammar": "node scripts/run-grammar-test.js",
     "test:grammar-direct": "tsx scripts/test-grammar-api.ts",
-    "test:verify": "node scripts/verify-setup.js"
+    "test:verify": "node scripts/verify-setup.js",
+    "repomix": "npx repomix --output codebase.txt --style plain --compress",
+    "repomix:xml": "npx repomix --output codebase.xml --style xml --compress",
+    "repomix:md": "npx repomix --output codebase.md --style markdown --compress"
   },
   "dependencies": {
     "@clerk/backend": "^1.20.1",
@@ -95,6 +98,7 @@
     "husky": "^9.1.6",
     "postcss": "^8",
     "prettier": "^3.3.3",
+    "repomix": "^0.3.9",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

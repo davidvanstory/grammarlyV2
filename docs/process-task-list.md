@@ -179,8 +179,9 @@ Implementation of a sophisticated AI-powered writing assistant with real-time gr
 
 ---
 
-## Phase 6: Error Highlighting & Correction System
+## Phase 6: Error Highlighting & Correction System - defer to highlighting.md for implementation instructions. 
 **Dependencies:** Phase 5 complete
+
 **Status:** Not Started
 
 ### [ ] Multi-Layered Error Display

@@ -87,6 +87,12 @@ export default function ContentEditableEditor({
     null
   )
 
+  // Step 2: Add tracking state for document changes to prevent unnecessary effects
+  const [prevDocumentId, setPrevDocumentId] = useState<string | null>(null)
+  const [prevDocumentContent, setPrevDocumentContent] = useState<string | null>(
+    null
+  )
+
   // Refs
   const editorRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -159,8 +165,20 @@ export default function ContentEditableEditor({
       setGrammarCheckError(null)
 
       try {
+        // Use consistent text processing for AI - same as highlighting component
+        let textForAI = text
+        if (editorRef.current) {
+          console.log("📝 Using consistent text processor for AI...")
+          const textProcessor = getTextProcessor()
+          const result = textProcessor.htmlToPlainText(editorRef.current)
+          textForAI = result.plainText
+          console.log(
+            `📝 Processed text for AI: ${textForAI.length} chars (original: ${text.length})`
+          )
+        }
+
         const request: GrammarCheckRequest = {
-          text,
+          text: textForAI,
           previousErrors: errors,
           forceRecheck
         }
@@ -347,32 +365,132 @@ export default function ContentEditableEditor({
     }
   )
 
-  // Update local state when document prop changes
+  // Step 2: Enhanced document change detection with robust tracking
   useEffect(() => {
     if (document) {
-      console.log("📝 Updating editor content for document:", document.title)
-      setContent(document.content)
-      setTitle(document.title)
-      setHasUnsavedChanges(false)
-      setSaveError(null)
-      setLastSaved(new Date(document.updatedAt))
+      const isActuallyNewDocument = document.id !== prevDocumentId
+      const isContentChangedExternally =
+        document.content !== prevDocumentContent && document.content !== content
 
-      // Reset Phase 4 state for new document
-      setErrors([])
-      setIsProcessingText(false)
-      setTextProcessingResult(null)
-      updateEditorState(document.content)
+      if (isActuallyNewDocument) {
+        console.log(
+          "📝 CEE: useEffect[document] - Loading NEW document:",
+          document.id,
+          "Title:",
+          document.title
+        )
+        setPrevDocumentId(document.id)
+        setPrevDocumentContent(document.content)
 
-      // NEW: Trigger grammar check for newly loaded document
-      if (document.content.trim().length > 10) {
-        console.log("🤖 Triggering initial grammar check for new document")
-        // Use setTimeout to allow UI to update first
-        setTimeout(() => {
-          performGrammarCheck(document.content, true)
-        }, 1000) // 1 second delay to allow content to load
+        // Reset all state for new document
+        setContent(document.content)
+        setTitle(document.title)
+        setHasUnsavedChanges(false)
+        setSaveError(null)
+        setLastSaved(new Date(document.updatedAt))
+
+        // Reset Phase 4 state for new document
+        setErrors([])
+        setIsProcessingText(false)
+        setTextProcessingResult(null)
+        updateEditorState(document.content)
+
+        // Set editor content properly using consistent text processing
+        if (
+          editorRef.current &&
+          editorRef.current.innerText !== document.content
+        ) {
+          console.log(
+            "📝 CEE: Setting initial editor content from NEW document"
+          )
+          editorRef.current.innerText = document.content // Set plain text
+        }
+
+        // Enhanced initial grammar check for NEW document
+        if (document.content.trim().length > 10) {
+          console.log(
+            "🤖 CEE: Triggering initial grammar check for NEW document:",
+            document.title
+          )
+          setTimeout(() => {
+            if (editorRef.current) {
+              console.log(
+                "📝 CEE: Using text processor for NEW document grammar check..."
+              )
+              const textProcessor = getTextProcessor()
+              const result = textProcessor.htmlToPlainText(editorRef.current)
+              const processedText = result.plainText
+              console.log(
+                `📝 CEE: NEW document check text: ${processedText.length} chars (original: ${document.content.length})`
+              )
+              performGrammarCheck(processedText, true)
+            } else {
+              console.log("📝 CEE: Fallback grammar check for NEW document")
+              performGrammarCheck(document.content, true)
+            }
+          }, 1000)
+        }
+      } else if (isContentChangedExternally) {
+        // Same document ID, but content prop from parent has changed externally
+        console.log(
+          "📝 CEE: useEffect[document] - External content update for document:",
+          document.id,
+          "Title:",
+          document.title
+        )
+        setPrevDocumentContent(document.content)
+
+        setContent(document.content)
+        if (title !== document.title) setTitle(document.title)
+        setHasUnsavedChanges(false) // Content came from external, so not "unsaved user changes"
+        setLastSaved(new Date(document.updatedAt))
+        updateEditorState(document.content)
+
+        // Update editor DOM for external changes
+        if (
+          editorRef.current &&
+          editorRef.current.innerText !== document.content
+        ) {
+          console.log("📝 CEE: Updating editor DOM for external content change")
+          editorRef.current.innerText = document.content
+        }
+
+        if (document.content.trim().length > 10) {
+          setTimeout(() => {
+            console.log(
+              "🤖 CEE: Triggering grammar check for EXTERNALLY UPDATED document:",
+              document.title
+            )
+            performGrammarCheck(document.content, true)
+          }, 1000)
+        }
+      } else {
+        // Document prop reference might have changed, but ID and content are the same
+        // as what we last processed from the prop. Only update metadata if needed.
+        const newLastSaved = new Date(document.updatedAt)
+        if (lastSaved?.getTime() !== newLastSaved.getTime()) {
+          console.log(
+            "📝 CEE: useEffect[document] - Updating lastSaved timestamp only"
+          )
+          setLastSaved(newLastSaved)
+        } else {
+          console.log(
+            "📝 CEE: useEffect[document] - Document prop updated (same ID, same content, same timestamp) - Title:",
+            document.title
+          )
+        }
+
+        // Always update prevDocumentContent to track the latest prop version
+        if (document.content !== prevDocumentContent) {
+          setPrevDocumentContent(document.content)
+        }
       }
-    } else {
-      console.log("📝 No document selected, clearing editor")
+    } else if (prevDocumentId !== null) {
+      // Document became null and there was a document selected before
+      console.log("📝 CEE: useEffect[document] - Document deselected")
+      setPrevDocumentId(null)
+      setPrevDocumentContent(null)
+
       setContent("")
       setTitle("")
       setHasUnsavedChanges(false)
@@ -384,8 +502,22 @@ export default function ContentEditableEditor({
       setIsProcessingText(false)
       setTextProcessingResult(null)
       updateEditorState("")
+
+      // Clear editor content
+      if (editorRef.current) {
+        editorRef.current.innerText = ""
+      }
     }
-  }, [document])
+  }, [
+    document,
+    prevDocumentId,
+    prevDocumentContent,
+    performGrammarCheck,
+    updateEditorState,
+    content,
+    title,
+    lastSaved
+  ])
 
   // Initialize position tracker when editor ref is available
   useEffect(() => {
@@ -415,7 +547,105 @@ export default function ContentEditableEditor({
         "📝 Synchronizing editor DOM with new content, length:",
         content.length
       )
-      editorRef.current.innerText = content
+
+      // Preserve cursor position before changing innerText
+      const selection = window.getSelection()
+      let savedRange = null
+      let cursorOffset = 0
+
+      if (selection && selection.rangeCount > 0) {
+        const currentRange = selection.getRangeAt(0)
+        // Check if the cursor is inside the editor before saving
+        if (editorRef.current.contains(currentRange.commonAncestorContainer)) {
+          savedRange = currentRange.cloneRange()
+          // Calculate cursor offset in plain text
+          try {
+            const textProcessor = getTextProcessor()
+            const beforeCursor = currentRange.cloneRange()
+            beforeCursor.selectNodeContents(editorRef.current)
+            beforeCursor.setEnd(
+              currentRange.startContainer,
+              currentRange.startOffset
+            )
+            const beforeText = textProcessor.htmlToPlainText(
+              beforeCursor.cloneContents() as any
+            ).plainText
+            cursorOffset = beforeText.length
+            console.log(`📍 Saved cursor position at offset: ${cursorOffset}`)
+          } catch (e) {
+            console.warn("Could not calculate cursor offset:", e)
+          }
+        }
+      }
+
+      editorRef.current.innerText = content // This will trigger ErrorHighlight to re-run
+
+      // Restore cursor position if possible
+      if (savedRange && selection) {
+        try {
+          // Try to restore to the same character offset
+          if (cursorOffset > 0 && cursorOffset <= content.length) {
+            const walker = window.document.createTreeWalker(
+              editorRef.current,
+              NodeFilter.SHOW_TEXT,
+              null
+            )
+
+            let currentOffset = 0
+            let targetNode = null
+            let targetOffset = 0
+            let textNode = walker.nextNode()
+
+            while (textNode && currentOffset < cursorOffset) {
+              const nodeLength = textNode.textContent?.length || 0
+              if (currentOffset + nodeLength >= cursorOffset) {
+                targetNode = textNode
+                targetOffset = cursorOffset - currentOffset
+                break
+              }
+              currentOffset += nodeLength
+              textNode = walker.nextNode()
+            }
+
+            if (targetNode) {
+              const newRange = window.document.createRange()
+              newRange.setStart(
+                targetNode,
+                Math.min(targetOffset, targetNode.textContent?.length || 0)
+              )
+              newRange.setEnd(
+                targetNode,
+                Math.min(targetOffset, targetNode.textContent?.length || 0)
+              )
+              selection.removeAllRanges()
+              selection.addRange(newRange)
+              console.log(`✅ Restored cursor to offset ${cursorOffset}`)
+            } else {
+              throw new Error(
+                "Could not find target node for cursor restoration"
+              )
+            }
+          } else {
+            throw new Error("Invalid cursor offset")
+          }
+        } catch (e) {
+          console.warn(
+            "Could not restore cursor position after content sync:",
+            e
+          )
+          // Fallback: move cursor to end
+          try {
+            const newRange = window.document.createRange()
+            newRange.selectNodeContents(editorRef.current)
+            newRange.collapse(false) // false for end
+            selection.removeAllRanges()
+            selection.addRange(newRange)
+            console.log("📍 Fallback: moved cursor to end")
+          } catch (fallbackError) {
+            console.warn("Could not even move cursor to end:", fallbackError)
+          }
+        }
+      }
     }
   }, [content])
 

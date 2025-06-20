@@ -35,3 +35,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# repomix output files
+codebase.txt
+codebase.xml
+codebase.md
+repomix-output.*

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { SelectDocument } from "@/db/schema/documents-schema"
 import {
   ResizablePanelGroup,
@@ -16,6 +16,7 @@ import GrammarSuggestionsSidebar from "./grammar-suggestions-sidebar"
 <ai_context>
 Main three-panel layout component for the Med Writer document editor.
 Implements resizable panels with document list (left), editor (center), and grammar suggestions (right).
+Enhanced with stable selectedDocument prop to prevent infinite re-renders.
 </ai_context>
 */
 
@@ -33,14 +34,13 @@ export default function ThreePanelLayout({
     initialDocuments.length
   )
 
-  // State for currently selected document
-  const [selectedDocument, setSelectedDocument] =
-    useState<SelectDocument | null>(
-      initialDocuments.length > 0 ? initialDocuments[0] : null
-    )
-
   // State for documents list (will be updated when documents are created/deleted)
   const [documents, setDocuments] = useState<SelectDocument[]>(initialDocuments)
+
+  // Store only the ID of the selected document instead of the full object
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+    initialDocuments.length > 0 ? initialDocuments[0].id : null
+  )
 
   // State for panel visibility
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false)
@@ -50,61 +50,131 @@ export default function ThreePanelLayout({
   const [grammarErrors, setGrammarErrors] = useState<TrackedError[]>([])
   const [isGrammarChecking, setIsGrammarChecking] = useState(false)
 
+  // Effect to synchronize local `documents` state and `selectedDocumentId`
+  // when the `initialDocuments` prop changes.
+  useEffect(() => {
+    console.log("🔄 ThreePanelLayout: Syncing with new initialDocuments prop")
+    setDocuments(initialDocuments)
+
+    const currentSelectedDocExistsInNewList = initialDocuments.some(
+      doc => doc.id === selectedDocumentId
+    )
+
+    if (selectedDocumentId && !currentSelectedDocExistsInNewList) {
+      // Current selection is gone, select first from new list or null
+      console.log(
+        "🔄 ThreePanelLayout: Current selection not found in new list, selecting first document"
+      )
+      setSelectedDocumentId(
+        initialDocuments.length > 0 ? initialDocuments[0].id : null
+      )
+    } else if (!selectedDocumentId && initialDocuments.length > 0) {
+      // Nothing was selected, but now there are documents
+      console.log(
+        "🔄 ThreePanelLayout: No document was selected, selecting first available"
+      )
+      setSelectedDocumentId(initialDocuments[0].id)
+    }
+    // If current selection still exists, selectedDocumentId remains the same.
+  }, [initialDocuments, selectedDocumentId]) // Ensure selectedDocumentId is a dep
+
+  // Derive the selectedDocument object using useMemo for stability
+  const selectedDocument = useMemo(() => {
+    console.log("🔄 ThreePanelLayout: Recalculating selectedDocument memo")
+    const found = documents.find(doc => doc.id === selectedDocumentId) || null
+    console.log(
+      "📄 ThreePanelLayout: Selected document:",
+      found?.title || "None",
+      "ID:",
+      found?.id || "None"
+    )
+    return found
+  }, [documents, selectedDocumentId])
+
   console.log(
     "📄 Current selected document:",
     selectedDocument?.title || "None"
   )
 
-  // NEW: Clear grammar errors when document changes
+  // Clear grammar errors when document changes
   useEffect(() => {
-    console.log("🧹 Document changed, clearing grammar errors and state")
+    console.log(
+      "🧹 ThreePanelLayout: Document ID changed, clearing grammar errors and state"
+    )
     setGrammarErrors([])
     setIsGrammarChecking(false)
-  }, [selectedDocument?.id]) // Only trigger when document ID changes
+  }, [selectedDocumentId]) // Track ID changes instead of full object
 
   // Handle document selection
   const handleDocumentSelect = (document: SelectDocument) => {
-    console.log("📄 Selecting document:", document.title)
-    console.log("🧹 Will clear grammar errors for new document")
-    setSelectedDocument(document)
-    // Note: Grammar errors will be cleared by the useEffect above
+    console.log(
+      "📄 ThreePanelLayout: Document selected - ID:",
+      document.id,
+      "Title:",
+      document.title
+    )
+    setSelectedDocumentId(document.id)
+    // Grammar errors will be cleared by the useEffect above
   }
 
   // Handle document creation
   const handleDocumentCreate = (newDocument: SelectDocument) => {
-    console.log("📄 Adding new document to list:", newDocument.title)
-    setDocuments(prev => [newDocument, ...prev])
-    setSelectedDocument(newDocument)
+    console.log(
+      "✨ ThreePanelLayout: Document created - ID:",
+      newDocument.id,
+      "Title:",
+      newDocument.title
+    )
+    setDocuments(prevDocs => [newDocument, ...prevDocs])
+    setSelectedDocumentId(newDocument.id) // Select the new document
+    // Grammar errors will be cleared by the useEffect above
   }
 
   // Handle document deletion
   const handleDocumentDelete = (documentId: string) => {
-    console.log("📄 Removing document from list:", documentId)
-    setDocuments(prev => prev.filter(doc => doc.id !== documentId))
+    console.log(
+      "🗑️ ThreePanelLayout: Document delete requested - ID:",
+      documentId
+    )
+    setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== documentId))
 
-    // If deleted document was selected, select the first remaining document
-    if (selectedDocument?.id === documentId) {
+    if (selectedDocumentId === documentId) {
+      // If deleted document was selected, select the first remaining document or null
       const remainingDocs = documents.filter(doc => doc.id !== documentId)
-      setSelectedDocument(remainingDocs.length > 0 ? remainingDocs[0] : null)
+      const nextSelectedId =
+        remainingDocs.length > 0 ? remainingDocs[0].id : null
+      console.log(
+        "🔄 ThreePanelLayout: Deleted document was selected, switching to:",
+        nextSelectedId
+      )
+      setSelectedDocumentId(nextSelectedId)
+      // Grammar errors will be cleared by the useEffect above
     }
   }
 
   // Handle document updates
   const handleDocumentUpdate = (updatedDocument: SelectDocument) => {
-    console.log("📄 Updating document in list:", updatedDocument.title)
-    setDocuments(prev =>
-      prev.map(doc => (doc.id === updatedDocument.id ? updatedDocument : doc))
+    console.log(
+      "💾 ThreePanelLayout: Document update received - ID:",
+      updatedDocument.id,
+      "Title:",
+      updatedDocument.title
     )
-
-    // Update selected document if it's the one being updated
-    if (selectedDocument?.id === updatedDocument.id) {
-      setSelectedDocument(updatedDocument)
-    }
+    setDocuments(prevDocs =>
+      prevDocs.map(doc =>
+        doc.id === updatedDocument.id ? updatedDocument : doc
+      )
+    )
+    // No need to call setSelectedDocumentId if the ID hasn't changed,
+    // useMemo will provide the updated selectedDocument object automatically.
   }
 
   // Phase 5 - Handle grammar check results
   const handleGrammarCheck = (errors: TrackedError[]) => {
-    console.log("🤖 Received grammar check results:", errors.length, "errors")
+    console.log(
+      "✍️ ThreePanelLayout: Grammar check results received - Errors:",
+      errors.length
+    )
     setGrammarErrors(errors)
     setIsGrammarChecking(false)
   }

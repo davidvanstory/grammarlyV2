@@ -4,6 +4,7 @@
 <ai_context>
 Error highlighting component for the Med Writer application.
 Implements DOM-based error highlighting with color-coded error types and interactive tooltips.
+Enhanced with improved cross-node highlighting and position mapping accuracy.
 </ai_context>
 */
 
@@ -15,6 +16,7 @@ import {
   ErrorSpanAttributes,
   PerformanceMetrics
 } from "@/types/grammar-types"
+import { getTextProcessor } from "@/lib/text-processor"
 
 interface ErrorHighlightProps {
   errors: TrackedError[]
@@ -70,7 +72,7 @@ export default function ErrorHighlight({
   )
 
   /**
-   * Apply error highlights to the DOM
+   * Apply error highlights to the DOM using consistent text processing
    */
   const applyHighlights = useCallback(() => {
     if (!containerRef.current) {
@@ -79,7 +81,7 @@ export default function ErrorHighlight({
     }
 
     const startTime = performance.now()
-    console.log("🎨 Applying error highlights...")
+    console.log("🎨 Applying error highlights with enhanced algorithm...")
 
     // Clear existing highlights first
     clearHighlights()
@@ -94,17 +96,25 @@ export default function ErrorHighlight({
       `🎨 Processing ${validErrors.length} valid errors for highlighting`
     )
 
+    // Use consistent text processing for position mapping
+    const textProcessor = getTextProcessor()
+    const textResult = textProcessor.htmlToPlainText(containerRef.current)
+    const { plainText } = textResult
+
+    console.log(
+      `📝 Extracted plain text: ${plainText.length} chars for highlighting`
+    )
+
     // Sort errors by position to avoid conflicts
     const sortedErrors = [...validErrors].sort(
       (a, b) => a.currentPosition.start - b.currentPosition.start
     )
 
     let highlightsApplied = 0
-    const textContent = containerRef.current.innerText || ""
 
     for (const error of sortedErrors) {
       try {
-        const success = applyErrorHighlight(error, textContent)
+        const success = applyErrorHighlightWithValidation(error, plainText)
         if (success) {
           highlightsApplied++
           highlightedErrors.current.add(error.id)
@@ -120,7 +130,7 @@ export default function ErrorHighlight({
     const processingTime = performance.now() - startTime
     performanceMetrics.current.errorHighlightingTime = processingTime
     performanceMetrics.current.errorsProcessed = validErrors.length
-    performanceMetrics.current.textLength = textContent.length
+    performanceMetrics.current.textLength = plainText.length
 
     console.log(
       `✅ Applied ${highlightsApplied}/${validErrors.length} error highlights`
@@ -164,36 +174,53 @@ export default function ErrorHighlight({
   }, [containerRef])
 
   /**
-   * Apply highlight for a single error
+   * Apply highlight for a single error with enhanced validation
    */
-  const applyErrorHighlight = useCallback(
-    (error: TrackedError, textContent: string): boolean => {
+  const applyErrorHighlightWithValidation = useCallback(
+    (error: TrackedError, plainText: string): boolean => {
       if (!containerRef.current) return false
 
       console.log(
         `🎨 Applying highlight for error ${error.id}: ${error.currentPosition.start}-${error.currentPosition.end}`
       )
 
-      // Validate error position
+      // Validate error position against current text
       const { start, end } = error.currentPosition
-      if (start < 0 || end > textContent.length || start >= end) {
+      if (start < 0 || end > plainText.length || start >= end) {
         console.log(
-          `❌ Invalid error position: ${start}-${end} for text length ${textContent.length}`
+          `❌ Invalid error position: ${start}-${end} for text length ${plainText.length}`
         )
         return false
       }
 
       // Verify the text matches what we expect
-      const expectedText = textContent.substring(start, end)
+      const expectedText = plainText.substring(start, end)
       if (expectedText !== error.original) {
         console.log(
           `❌ Text mismatch for error ${error.id}: expected "${error.original}", found "${expectedText}"`
         )
+
+        // Try to find the correct position
+        const correctedPosition = findCorrectPosition(
+          plainText,
+          error.original,
+          start
+        )
+        if (correctedPosition) {
+          console.log(`🔧 Found corrected position for error ${error.id}`)
+          return highlightTextRangeEnhanced(
+            containerRef.current,
+            correctedPosition.start,
+            correctedPosition.end,
+            error
+          )
+        }
         return false
       }
 
+      // Apply highlight using enhanced algorithm
       try {
-        const success = highlightTextRange(
+        const success = highlightTextRangeEnhanced(
           containerRef.current,
           start,
           end,
@@ -348,63 +375,104 @@ export default function ErrorHighlight({
 }
 
 /**
- * Helper function to highlight a text range in the DOM
+ * Enhanced helper function to highlight a text range in the DOM with cross-node support
+ * Implements the improved algorithm from highlighting.md
  */
-function highlightTextRange(
+function highlightTextRangeEnhanced(
   container: HTMLElement,
   start: number,
   end: number,
   error: TrackedError
 ): boolean {
-  console.log(`🎨 Highlighting text range: ${start}-${end}`)
+  console.log(`🎨 Enhanced highlighting text range: ${start}-${end}`)
 
+  let currentPlainTextOffset = 0
   const walker = document.createTreeWalker(
     container,
     NodeFilter.SHOW_TEXT,
     null
   )
+  let node
+  let success = false
 
-  let currentOffset = 0
-  let node = walker.nextNode()
+  const nodesToWrap: Array<{
+    textNode: Text
+    startInNode: number
+    endInNode: number
+  }> = []
 
-  while (node) {
-    const nodeLength = node.textContent?.length || 0
-    const nodeStart = currentOffset
-    const nodeEnd = currentOffset + nodeLength
+  while ((node = walker.nextNode() as Text | null)) {
+    const nodeText = node.textContent || ""
+    const nodeLength = nodeText.length
 
-    // Check if this text node contains part of our target range
-    if (nodeStart < end && nodeEnd > start) {
-      const rangeStart = Math.max(0, start - nodeStart)
-      const rangeEnd = Math.min(nodeLength, end - nodeStart)
-
-      if (rangeStart < rangeEnd) {
-        try {
-          const success = wrapTextInSpan(node, rangeStart, rangeEnd, error)
-          if (success) {
-            console.log(
-              `✅ Successfully wrapped text in span: ${rangeStart}-${rangeEnd}`
-            )
-            return true
-          }
-        } catch (wrapError) {
-          console.error("❌ Error wrapping text in span:", wrapError)
-          return false
-        }
-      }
+    if (currentPlainTextOffset + nodeLength <= start) {
+      // Node is entirely before the error
+      currentPlainTextOffset += nodeLength
+      continue
     }
 
-    currentOffset += nodeLength
-    node = walker.nextNode()
+    // At this point, the error starts in or before this node,
+    // or this node is part of an ongoing error span.
+    const errorStartInThisNode = Math.max(0, start - currentPlainTextOffset)
+    const errorEndInThisNode = Math.min(
+      nodeLength,
+      end - currentPlainTextOffset
+    )
+
+    if (errorStartInThisNode < errorEndInThisNode) {
+      // There's something to highlight in this node
+      nodesToWrap.push({
+        textNode: node,
+        startInNode: errorStartInThisNode,
+        endInNode: errorEndInThisNode
+      })
+      success = true // Mark that we found at least one segment
+    }
+
+    currentPlainTextOffset += nodeLength
+    if (currentPlainTextOffset >= end) {
+      // We've passed the end of the error
+      break
+    }
   }
 
-  console.log(`❌ Could not find text range to highlight: ${start}-${end}`)
-  return false
+  if (!success) {
+    console.warn(
+      `Could not find DOM range for error ID ${error.id}: "${error.original}" at ${start}-${end}`
+    )
+
+    // Optional: Fallback validation with container text
+    const extractedText = container.innerText.substring(start, end)
+    if (extractedText !== error.original) {
+      console.warn(
+        `Text mismatch: Expected "${error.original}", Got "${extractedText}"`
+      )
+    }
+    return false
+  }
+
+  // Wrap identified segments. Iterate in reverse to avoid issues with node splitting.
+  for (let i = nodesToWrap.length - 1; i >= 0; i--) {
+    const { textNode, startInNode, endInNode } = nodesToWrap[i]
+    const wrapSuccess = wrapTextInSpanEnhanced(
+      textNode,
+      startInNode,
+      endInNode,
+      error
+    )
+    if (!wrapSuccess) {
+      console.error(`❌ Failed to wrap text segment ${i} for error ${error.id}`)
+      // Continue with other segments even if one fails
+    }
+  }
+
+  return success
 }
 
 /**
- * Helper function to wrap text in a highlight span
+ * Enhanced helper function to wrap text in a highlight span with config support
  */
-function wrapTextInSpan(
+function wrapTextInSpanEnhanced(
   textNode: Node,
   start: number,
   end: number,
@@ -413,7 +481,7 @@ function wrapTextInSpan(
   if (!textNode.textContent || start >= end) return false
 
   console.log(
-    `🎨 Wrapping text in span: "${textNode.textContent.substring(start, end)}"`
+    `🎨 Enhanced wrapping text in span: "${textNode.textContent.substring(start, end)}"`
   )
 
   try {
@@ -425,17 +493,22 @@ function wrapTextInSpan(
     const highlightText = textContent.substring(start, end)
     const afterText = textContent.substring(end)
 
-    // Create the highlight span
+    // Create the highlight span with config
     const span = document.createElement("span")
     const config = HIGHLIGHT_CONFIGS[error.type]
 
-    // Set span attributes
+    if (!config) {
+      console.warn("No highlight config for error type:", error.type)
+      return false
+    }
+
+    // Set span attributes with enhanced configuration
     const attributes: ErrorSpanAttributes = {
       "data-error-id": error.id,
       "data-error-type": error.type,
       "data-error-start": start.toString(),
       "data-error-end": end.toString(),
-      className: config.className,
+      className: `${config.className} error-highlight-span`,
       title: `${error.type}: ${error.explanation}`
     }
 
@@ -443,6 +516,9 @@ function wrapTextInSpan(
       if (value) span.setAttribute(key, value)
     })
 
+    // Apply styling from config
+    span.style.color = config.color
+    span.style.borderBottom = `2px ${config.underlineStyle} ${config.color}`
     span.textContent = highlightText
 
     // Replace the text node with the new structure
@@ -460,10 +536,43 @@ function wrapTextInSpan(
 
     parent.replaceChild(fragment, textNode)
 
-    console.log(`✅ Text wrapped in highlight span successfully`)
+    console.log(`✅ Text wrapped in enhanced highlight span successfully`)
     return true
   } catch (error) {
-    console.error("❌ Error wrapping text in span:", error)
+    console.error("❌ Error wrapping text in enhanced span:", error)
     return false
   }
+}
+
+/**
+ * Find correct position for misaligned error text
+ */
+function findCorrectPosition(
+  text: string,
+  searchText: string,
+  approximateStart: number
+): { start: number; end: number } | null {
+  console.log("🔍 Attempting to find correct position for:", searchText)
+
+  // Search in a window around the approximate position
+  const searchWindow = 100
+  const windowStart = Math.max(0, approximateStart - searchWindow)
+  const windowEnd = Math.min(
+    text.length,
+    approximateStart + searchText.length + searchWindow
+  )
+  const searchArea = text.substring(windowStart, windowEnd)
+
+  const relativeIndex = searchArea.indexOf(searchText)
+  if (relativeIndex !== -1) {
+    const actualStart = windowStart + relativeIndex
+    console.log("✅ Found correct position:", actualStart)
+    return {
+      start: actualStart,
+      end: actualStart + searchText.length
+    }
+  }
+
+  console.log("❌ Could not find correct position")
+  return null
 }

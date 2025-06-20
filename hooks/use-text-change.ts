@@ -335,46 +335,128 @@ function getTextOffsetFromDOMPosition(
 }
 
 /**
- * Helper function to update error positions after text changes
+ * Enhanced helper function to update error positions after text changes
+ * Implements improved position shifting logic from highlighting.md
  */
 function updateErrorPositions(
   errors: TrackedError[],
   change: TextChange
 ): TrackedError[] {
   console.log(`🔧 Updating ${errors.length} error positions after text change...`)
+  console.log(`📝 Change details: type=${change.type}, start=${change.start}, end=${change.end}`)
+  console.log(`📝 Text change: "${change.oldText}" -> "${change.newText}"`)
   
   const lengthDiff = change.newText.length - change.oldText.length
   const changeStart = change.start
   const changeEnd = change.end
 
-  return errors.map(error => {
+  console.log(`📊 Length difference: ${lengthDiff}`)
+
+  return errors.map((error, index) => {
     const errorStart = error.currentPosition.start
     const errorEnd = error.currentPosition.end
 
+    console.log(`🔍 Processing error ${error.id} (${index + 1}/${errors.length}): pos=${errorStart}-${errorEnd}`)
+
     // Error is completely before the change - no adjustment needed
     if (errorEnd <= changeStart) {
+      console.log(`➡️ Error ${error.id}: before change, no adjustment needed`)
       return error
     }
 
     // Error is completely after the change - adjust by length difference
     if (errorStart >= changeEnd) {
+      const newStart = errorStart + lengthDiff
+      const newEnd = errorEnd + lengthDiff
+      console.log(`➡️ Error ${error.id}: after change, shifting by ${lengthDiff} (${errorStart}-${errorEnd} -> ${newStart}-${newEnd})`)
       return {
         ...error,
         currentPosition: {
-          start: errorStart + lengthDiff,
+          start: newStart,
+          end: newEnd
+        }
+      }
+    }
+
+    // Complex case: Error overlaps with the change
+    console.log(`⚠️ Error ${error.id} overlaps with change, analyzing overlap...`)
+
+    // Check if the error is completely within the changed range
+    if (errorStart >= changeStart && errorEnd <= changeEnd) {
+      console.log(`❌ Error ${error.id} is completely within changed range, invalidating`)
+      return {
+        ...error,
+        status: "pending" as const, // Will need revalidation
+        currentPosition: {
+          start: changeStart,
+          end: changeStart + change.newText.length
+        }
+      }
+    }
+
+    // Check if the change is completely within the error
+    if (changeStart >= errorStart && changeEnd <= errorEnd) {
+      console.log(`🔧 Error ${error.id}: change is within error, adjusting end position`)
+      return {
+        ...error,
+        status: "pending" as const, // May need revalidation due to content change
+        currentPosition: {
+          start: errorStart,
           end: errorEnd + lengthDiff
         }
       }
     }
 
-    // Error overlaps with the change - mark as potentially invalid
-    console.log(`⚠️ Error ${error.id} overlaps with change, may need revalidation`)
+    // Partial overlap - error starts before change but overlaps
+    if (errorStart < changeStart && errorEnd > changeStart) {
+      console.log(`🔧 Error ${error.id}: starts before change but overlaps, may need revalidation`)
+      
+      // If error ends within the change, truncate it
+      if (errorEnd <= changeEnd) {
+        return {
+          ...error,
+          status: "pending" as const,
+          currentPosition: {
+            start: errorStart,
+            end: changeStart
+          }
+        }
+      } else {
+        // Error spans across the change - adjust end position
+        return {
+          ...error,
+          status: "pending" as const,
+          currentPosition: {
+            start: errorStart,
+            end: errorEnd + lengthDiff
+          }
+        }
+      }
+    }
+
+    // Partial overlap - error starts within change but extends beyond
+    if (errorStart >= changeStart && errorStart < changeEnd && errorEnd > changeEnd) {
+      console.log(`🔧 Error ${error.id}: starts within change but extends beyond`)
+      const newStart = changeEnd + lengthDiff
+      const newEnd = errorEnd + lengthDiff
+      return {
+        ...error,
+        status: "pending" as const,
+        currentPosition: {
+          start: newStart,
+          end: newEnd
+        }
+      }
+    }
+
+    // Fallback - mark as pending for revalidation
+    console.log(`⚠️ Error ${error.id}: complex overlap, marking as pending`)
     return {
       ...error,
-      status: "pending" as const, // Will need revalidation
+      status: "pending" as const,
       currentPosition: {
-        start: Math.max(changeStart, errorStart),
-        end: Math.min(changeEnd + lengthDiff, errorEnd + lengthDiff)
+        start: Math.max(changeStart, errorStart + (errorStart >= changeStart ? lengthDiff : 0)),
+        end: Math.max(changeStart + change.newText.length, errorEnd + lengthDiff)
       }
     }
   })
