@@ -369,36 +369,14 @@ export default function ContentEditableEditor({
 
   // Update editor content when content state changes
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerText !== content) {
-      console.log("📝 Updating editor DOM content, length:", content.length)
-      // Preserve cursor position
-      const selection = window.getSelection()
-      let cursorPosition = 0
-
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0)
-        cursorPosition = range.startOffset
-      }
-
-      // Set the content as plain text to avoid HTML issues
+    // Only update the editor's content if it's different from the state.
+    // This is crucial for loading new documents without interfering with user typing.
+    if (editorRef.current && content !== editorRef.current.innerText) {
+      console.log(
+        "📝 Synchronizing editor DOM with new content, length:",
+        content.length
+      )
       editorRef.current.innerText = content
-
-      // Restore cursor position
-      if (selection && editorRef.current.firstChild) {
-        try {
-          const range = window.document.createRange()
-          const textNode = editorRef.current.firstChild
-          const maxOffset = textNode.textContent?.length || 0
-          const safeOffset = Math.min(cursorPosition, maxOffset)
-
-          range.setStart(textNode, safeOffset)
-          range.setEnd(textNode, safeOffset)
-          selection.removeAllRanges()
-          selection.addRange(range)
-        } catch (error) {
-          console.log("📝 Could not restore cursor position:", error)
-        }
-      }
     }
   }, [content])
 
@@ -448,19 +426,6 @@ export default function ContentEditableEditor({
     [document, content, title, onDocumentUpdate]
   )
 
-  // Debounced save for auto-save
-  const debouncedSave = useCallback(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current)
-    }
-
-    debounceTimeoutRef.current = setTimeout(() => {
-      if (hasUnsavedChanges) {
-        saveDocument()
-      }
-    }, DEBOUNCE_DELAY)
-  }, [hasUnsavedChanges, saveDocument])
-
   // Set up auto-save interval
   useEffect(() => {
     if (autoSaveTimeoutRef.current) {
@@ -480,15 +445,6 @@ export default function ContentEditableEditor({
       }
     }
   }, [hasUnsavedChanges, isSaving, saveDocument])
-
-  // Handle content changes
-  const handleContentChange = (newContent: string) => {
-    console.log("📝 Content changed, length:", newContent.length)
-    console.log("📝 Content is empty:", newContent.trim() === "")
-    setContent(newContent)
-    setHasUnsavedChanges(true)
-    debouncedSave()
-  }
 
   // Handle title changes
   const handleTitleChange = (newTitle: string) => {
@@ -707,17 +663,6 @@ export default function ContentEditableEditor({
             unicodeBidi: "embed",
             writingMode: "horizontal-tb"
           }}
-          onInput={e => {
-            const target = e.target as HTMLDivElement
-            const newContent = target.innerHTML || ""
-            console.log(
-              "📝 Content input detected, HTML length:",
-              newContent.length
-            )
-            // Convert HTML to plain text for storage but preserve formatting
-            const plainText = target.innerText || ""
-            handleContentChange(plainText)
-          }}
           onPaste={e => {
             console.log("📝 Paste event detected")
             // Handle paste as plain text to avoid formatting issues
@@ -744,7 +689,8 @@ export default function ContentEditableEditor({
               // Trigger content change
               const target = e.target as HTMLDivElement
               const plainText = target.innerText || ""
-              handleContentChange(plainText)
+              setContent(plainText)
+              setHasUnsavedChanges(true)
             }
           }}
           onKeyDown={e => {
@@ -766,7 +712,8 @@ export default function ContentEditableEditor({
                 // Trigger content change
                 const target = e.target as HTMLDivElement
                 const plainText = target.innerText || ""
-                handleContentChange(plainText)
+                setContent(plainText)
+                setHasUnsavedChanges(true)
               }
             }
           }}
