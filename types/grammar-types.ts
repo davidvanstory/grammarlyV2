@@ -89,7 +89,6 @@ export interface GrammarCheckRequest {
   text: string
   previousErrors?: TrackedError[]
   forceRecheck?: boolean
-  medicalContext?: boolean
 }
 
 // Grammar check response
@@ -136,14 +135,6 @@ export interface PositionValidation {
   expectedText: string
   adjustedPosition?: TextPosition
   error?: string
-}
-
-// Medical terminology context
-export interface MedicalContext {
-  termsFound: string[]
-  abbreviationsUsed: string[]
-  specialTerms: string[]
-  confidence: number
 }
 
 // Undo/redo state for text changes

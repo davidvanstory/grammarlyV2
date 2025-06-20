@@ -160,8 +160,7 @@ export default function ContentEditableEditor({
         const request: GrammarCheckRequest = {
           text,
           previousErrors: errors,
-          forceRecheck,
-          medicalContext: true
+          forceRecheck
         }
 
         console.log("🌐 Calling grammar check API...")

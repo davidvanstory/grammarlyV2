@@ -2,11 +2,11 @@
 
 import {
   Brain,
-  BookOpen,
   Target,
   AlertTriangle,
   Clock,
-  CheckCircle
+  CheckCircle,
+  FileText
 } from "lucide-react"
 import { SelectDocument } from "@/db/schema/documents-schema"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -201,7 +201,7 @@ export default function GrammarSuggestionsSidebar({
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm">
-                    <BookOpen className="size-4 text-blue-600" />
+                    <FileText className="size-4 text-blue-600" />
                     Document Stats
                   </CardTitle>
                 </CardHeader>
@@ -334,17 +334,6 @@ export default function GrammarSuggestionsSidebar({
                                   </Button>
                                 ))}
                             </div>
-
-                            {error.medical_context && (
-                              <div className="mt-2 rounded bg-blue-50 p-2 text-xs">
-                                <span className="font-medium text-blue-700">
-                                  Medical context:
-                                </span>{" "}
-                                <span className="text-blue-600">
-                                  {error.medical_context}
-                                </span>
-                              </div>
-                            )}
                           </div>
                         ))}
 
@@ -358,29 +347,6 @@ export default function GrammarSuggestionsSidebar({
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-
-              {/* Medical Terminology Help (Placeholder) */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <BookOpen className="size-4 text-green-600" />
-                    Medical Terms
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="py-4 text-center text-slate-500">
-                    <div className="mx-auto mb-2 flex size-8 items-center justify-center rounded-full bg-slate-200">
-                      <BookOpen className="size-4 text-slate-400" />
-                    </div>
-                    <p className="text-xs">
-                      Medical terminology help will appear here
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Coming in Phase 7
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
 

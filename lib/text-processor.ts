@@ -1,36 +1,24 @@
 /*
 <ai_context>
 Text processing utilities for the Med Writer application.
-Handles contentEditable to plain text conversion, text normalization, and medical text processing.
+Handles contentEditable to plain text conversion, text normalization, and text processing.
 </ai_context>
 */
 
 import {
   TextProcessingResult,
   PositionMapping,
-  TextChange,
-  MedicalContext
+  TextChange
 } from "@/types/grammar-types"
-import {
-  isMedicalTerm,
-  MEDICAL_TERMS,
-  MEDICAL_PREFIXES,
-  MEDICAL_SUFFIXES,
-  isLatinMedicalTerm,
-  calculateMedicalConfidence,
-  extractMedicalTerms
-} from "@/lib/medical-terms"
 
 /**
  * Text processor class for handling contentEditable content
  */
 export class TextProcessor {
   private static instance: TextProcessor
-  private medicalTermsCache = new Set<string>()
 
   constructor() {
     console.log("📝 Text processor initialized")
-    this.initializeMedicalTermsCache()
   }
 
   static getInstance(): TextProcessor {
@@ -67,7 +55,7 @@ export class TextProcessor {
   normalizeText(text: string): string {
     console.log("🧹 Normalizing text...")
 
-    // Remove excessive whitespace but preserve medical formatting
+    // Remove excessive whitespace but preserve formatting
     let normalized = text
       .replace(/\r\n/g, "\n") // Normalize line endings
       .replace(/\r/g, "\n") // Handle Mac line endings
@@ -82,32 +70,6 @@ export class TextProcessor {
       `📏 Text normalized: ${text.length} -> ${normalized.length} chars`
     )
     return normalized
-  }
-
-  /**
-   * Detect medical context in text
-   */
-  analyzeMedicalContext(text: string): MedicalContext {
-    console.log("🏥 Analyzing medical context...")
-
-    // Use the new medical terms utilities
-    const extractedTerms = extractMedicalTerms(text)
-    const confidence = calculateMedicalConfidence(text)
-
-    const context: MedicalContext = {
-      termsFound: extractedTerms.generalTerms,
-      abbreviationsUsed: extractedTerms.abbreviations,
-      specialTerms: [
-        ...extractedTerms.latinTerms,
-        ...extractedTerms.anatomicalTerms
-      ],
-      confidence
-    }
-
-    console.log(
-      `🏥 Medical context analysis complete: confidence: ${(confidence * 100).toFixed(1)}%`
-    )
-    return context
   }
 
   /**
@@ -142,19 +104,19 @@ export class TextProcessor {
   }
 
   /**
-   * Clean text for AI processing (remove formatting but preserve medical terms)
+   * Clean text for AI processing (remove formatting)
    */
   cleanForAI(text: string): string {
     console.log("🤖 Cleaning text for AI processing...")
 
-    // Preserve medical abbreviations and terms while cleaning
+    // Clean and normalize text
     let cleaned = text
       .replace(/\u00A0/g, " ") // Replace non-breaking spaces
       .replace(/[\u2000-\u206F]/g, " ") // Replace various Unicode spaces
       .replace(/[\u2E00-\u2E7F]/g, "") // Remove punctuation supplements
       .normalize("NFKC") // Normalize Unicode
 
-    // Preserve structure important for medical text
+    // Preserve structure
     cleaned = this.normalizeText(cleaned)
 
     console.log(
@@ -199,50 +161,26 @@ export class TextProcessor {
       newEnd--
     }
 
-    if (start < oldEnd || start < newEnd) {
-      const changeType: TextChange["type"] =
-        oldEnd === start ? "insert" : newEnd === start ? "delete" : "replace"
-
-      changes.push({
-        type: changeType,
-        start,
-        end: oldEnd,
-        oldText: oldText.substring(start, oldEnd),
-        newText: newText.substring(start, newEnd),
-        timestamp: new Date()
-      })
-
-      console.log(
-        `🔍 Change detected: ${changeType} at position ${start}-${oldEnd}`
-      )
+    // Create change record
+    const change: TextChange = {
+      type:
+        oldEnd === start ? "insert" : newEnd === start ? "delete" : "replace",
+      start,
+      end: oldEnd,
+      oldText: oldText.substring(start, oldEnd),
+      newText: newText.substring(start, newEnd),
+      timestamp: new Date()
     }
+
+    changes.push(change)
+    console.log(`📝 Detected ${change.type} change at position ${start}`)
 
     return changes
   }
 
-  // Private helper methods
-
-  private initializeMedicalTermsCache(): void {
-    console.log("🏥 Initializing medical terms cache...")
-
-    // Add all medical terms to cache for faster lookup
-    MEDICAL_TERMS.forEach(term => {
-      this.medicalTermsCache.add(term.toUpperCase())
-    })
-
-    // Add medical prefixes and suffixes
-    MEDICAL_PREFIXES.forEach(prefix =>
-      this.medicalTermsCache.add(prefix.toUpperCase())
-    )
-    MEDICAL_SUFFIXES.forEach(suffix =>
-      this.medicalTermsCache.add(suffix.toUpperCase())
-    )
-
-    console.log(
-      `🏥 Medical terms cache initialized: ${this.medicalTermsCache.size} terms`
-    )
-  }
-
+  /**
+   * Extract text with position mapping from DOM element
+   */
   private extractTextWithMapping(element: HTMLElement): {
     plainText: string
     positionMap: PositionMapping[]
@@ -251,75 +189,78 @@ export class TextProcessor {
   } {
     console.log("🔍 Extracting text with position mapping...")
 
-    const walker = document.createTreeWalker(
-      element,
-      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
-      null
-    )
-
-    let plainText = ""
     const positionMap: PositionMapping[] = []
-    let domOffset = 0
-    let textOffset = 0
+    let plainText = ""
     let nodeIndex = 0
 
-    let node = walker.nextNode()
-    while (node) {
+    const processNode = (node: Node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         const textContent = node.textContent || ""
+        const startOffset = plainText.length
 
-        // Map each character position
-        for (let i = 0; i < textContent.length; i++) {
-          positionMap.push({
-            domOffset: domOffset + i,
-            textOffset: textOffset + i,
-            nodeIndex,
-            nodeType: "text"
-          })
-        }
+        positionMap.push({
+          domOffset: startOffset,
+          textOffset: startOffset,
+          nodeIndex: nodeIndex++,
+          nodeType: "text"
+        })
 
         plainText += textContent
-        textOffset += textContent.length
-        domOffset += textContent.length
       } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const elementNode = node as HTMLElement
+        const element = node as HTMLElement
 
-        // Handle block elements and line breaks
-        if (this.isBlockElement(elementNode) || elementNode.tagName === "BR") {
-          if (plainText.length > 0 && !plainText.endsWith("\n")) {
-            positionMap.push({
-              domOffset,
-              textOffset,
-              nodeIndex,
-              nodeType: "element"
-            })
-            plainText += "\n"
-            textOffset += 1
-          }
+        // Add space for block elements
+        if (
+          this.isBlockElement(element) &&
+          plainText.length > 0 &&
+          !plainText.endsWith("\n")
+        ) {
+          plainText += "\n"
+        }
+
+        positionMap.push({
+          domOffset: plainText.length,
+          textOffset: plainText.length,
+          nodeIndex: nodeIndex++,
+          nodeType: "element"
+        })
+
+        // Process child nodes
+        for (const child of Array.from(node.childNodes)) {
+          processNode(child)
+        }
+
+        // Add line break after block elements
+        if (this.isBlockElement(element) && !plainText.endsWith("\n")) {
+          plainText += "\n"
         }
       }
-
-      nodeIndex++
-      node = walker.nextNode()
     }
 
-    const normalizedText = this.normalizeText(plainText)
-    const stats = this.getTextStatistics(normalizedText)
+    processNode(element)
+
+    // Clean up trailing whitespace
+    plainText = plainText.trim()
+
+    const stats = this.getTextStatistics(plainText)
 
     console.log(
-      `🔍 Text extraction complete: ${normalizedText.length} chars, ${positionMap.length} mappings`
+      `✅ Text extraction complete: ${stats.wordCount} words, ${positionMap.length} position mappings`
     )
 
     return {
-      plainText: normalizedText,
+      plainText,
       positionMap,
       wordCount: stats.wordCount,
       characterCount: stats.characterCount
     }
   }
 
+  /**
+   * Check if element is a block-level element
+   */
   private isBlockElement(element: HTMLElement): boolean {
-    const blockElements = [
+    const blockElements = new Set([
       "DIV",
       "P",
       "H1",
@@ -328,45 +269,43 @@ export class TextProcessor {
       "H4",
       "H5",
       "H6",
-      "LI",
+      "SECTION",
+      "ARTICLE",
+      "ASIDE",
+      "HEADER",
+      "FOOTER",
+      "MAIN",
+      "NAV",
+      "BLOCKQUOTE",
+      "PRE",
       "UL",
       "OL",
-      "BLOCKQUOTE"
-    ]
-    return blockElements.includes(element.tagName)
+      "LI"
+    ])
+
+    return blockElements.has(element.tagName.toUpperCase())
   }
 }
 
-/**
- * Utility functions for text processing
- */
-
+// Export singleton instance
 export function getTextProcessor(): TextProcessor {
   return TextProcessor.getInstance()
 }
 
+// Convenience functions
 export function processContentEditable(
   element: HTMLElement
 ): TextProcessingResult {
-  console.log("📝 Processing contentEditable element...")
   const processor = getTextProcessor()
   return processor.htmlToPlainText(element)
 }
 
 export function normalizeTextForProcessing(text: string): string {
-  console.log("🧹 Normalizing text for processing...")
   const processor = getTextProcessor()
   return processor.normalizeText(text)
 }
 
-export function detectMedicalContext(text: string): MedicalContext {
-  console.log("🏥 Detecting medical context...")
-  const processor = getTextProcessor()
-  return processor.analyzeMedicalContext(text)
-}
-
 export function getTextStats(text: string) {
-  console.log("📊 Getting text statistics...")
   const processor = getTextProcessor()
   return processor.getTextStatistics(text)
 }

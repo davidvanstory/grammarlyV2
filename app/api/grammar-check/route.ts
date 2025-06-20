@@ -1,7 +1,7 @@
 /*
 <ai_context>
 Grammar checking API endpoint for the Med Writer application.
-Handles POST requests for AI-powered grammar checking with medical terminology awareness.
+Handles POST requests for AI-powered grammar checking.
 </ai_context>
 */
 
@@ -69,12 +69,10 @@ export async function POST(request: NextRequest) {
     const grammarRequest: GrammarCheckRequest = {
       text: requestBody.text,
       previousErrors: requestBody.previousErrors || [],
-      forceRecheck: requestBody.forceRecheck || false,
-      medicalContext: requestBody.medicalContext !== false // Default to true
+      forceRecheck: requestBody.forceRecheck || false
     }
 
     console.log("🤖 Calling grammar check action...")
-    console.log("🏥 Medical context:", grammarRequest.medicalContext)
     console.log("🔄 Force recheck:", grammarRequest.forceRecheck)
 
     // Call grammar check action
@@ -102,26 +100,11 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("❌ Grammar check API error:", error)
-
-    // Handle specific error types
-    if (error instanceof Error) {
-      if (error.message.includes("OpenAI")) {
-        return NextResponse.json(
-          { error: "AI service temporarily unavailable" },
-          { status: 503 }
-        )
-      }
-
-      if (error.message.includes("timeout")) {
-        return NextResponse.json(
-          { error: "Request timeout - please try again" },
-          { status: 408 }
-        )
-      }
-    }
-
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        success: false
+      },
       { status: 500 }
     )
   }

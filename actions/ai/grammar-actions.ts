@@ -3,13 +3,12 @@
 /*
 <ai_context>
 OpenAI grammar checking server actions for the Med Writer application.
-Implements medical-aware grammar checking with position validation and error tracking.
+Implements grammar checking with position validation and error tracking.
 </ai_context>
 */
 
 import { getOpenAIClient, MEDICAL_GRAMMAR_PROMPT, OPENAI_CONFIG, OpenAIError } from "@/lib/openai"
 import { getTextProcessor } from "@/lib/text-processor"
-import { extractMedicalTerms, calculateMedicalConfidence } from "@/lib/medical-terms"
 import {
   GrammarCheckRequest,
   GrammarCheckResponse,
@@ -25,7 +24,6 @@ export async function checkGrammarAction(
   request: GrammarCheckRequest
 ): Promise<ActionState<GrammarCheckResponse>> {
   console.log("🤖 Starting grammar check for text:", request.text.length, "characters")
-  console.log("🏥 Medical context enabled:", request.medicalContext)
   console.log("🔄 Force recheck:", request.forceRecheck)
 
   const startTime = Date.now()
@@ -48,34 +46,15 @@ export async function checkGrammarAction(
       }
     }
 
-    // Process text for medical context
-    console.log("📝 Processing text for medical context...")
+    // Process text for AI
+    console.log("📝 Processing text for AI...")
     const textProcessor = getTextProcessor()
     const cleanedText = textProcessor.cleanForAI(request.text)
-    const medicalContext = textProcessor.analyzeMedicalContext(request.text)
     
-    console.log("🏥 Medical context analysis:")
-    console.log("  - Terms found:", medicalContext.termsFound.length)
-    console.log("  - Abbreviations:", medicalContext.abbreviationsUsed.length)
-    console.log("  - Confidence:", (medicalContext.confidence * 100).toFixed(1) + "%")
+    console.log("📝 Text cleaned for AI processing")
 
-    // Extract medical terms for prompt context
-    const extractedTerms = extractMedicalTerms(request.text)
-    const medicalTermsList = [
-      ...extractedTerms.abbreviations,
-      ...extractedTerms.anatomicalTerms,
-      ...extractedTerms.generalTerms,
-      ...extractedTerms.latinTerms
-    ]
-
-    console.log("🏥 Medical terms for AI context:", medicalTermsList.slice(0, 10))
-
-    // Prepare OpenAI prompt with medical context
-    const medicalTermsContext = medicalTermsList.length > 0 
-      ? `\n\nMEDICAL TERMS IN THIS TEXT: ${medicalTermsList.join(", ")}\nDo NOT flag these terms as errors.`
-      : ""
-
-    const fullPrompt = MEDICAL_GRAMMAR_PROMPT + medicalTermsContext + "\n\n" + cleanedText
+    // Prepare OpenAI prompt (medical prompt is preserved)
+    const fullPrompt = MEDICAL_GRAMMAR_PROMPT + "\n\n" + cleanedText
 
     console.log("🤖 Sending request to OpenAI...")
     console.log("🤖 Prompt length:", fullPrompt.length, "characters")
@@ -210,8 +189,8 @@ export async function checkGrammarAction(
       errors: validatedErrors,
       processedText: cleanedText,
       processingTime,
-      confidence: medicalContext.confidence,
-      medicalTermsFound: medicalTermsList
+      confidence: 0.8, // Default confidence since we removed medical confidence calculation
+      medicalTermsFound: [] // Empty since we removed medical term extraction
     }
 
     return {
@@ -242,27 +221,29 @@ export async function checkGrammarAction(
  * Find correct position for misaligned error
  */
 function findCorrectPosition(
-  text: string, 
-  target: string, 
+  text: string,
+  searchText: string,
   approximateStart: number
 ): { start: number; end: number } | null {
-  console.log("🔍 Searching for correct position of:", target)
-  
+  console.log("🔍 Attempting to find correct position for:", searchText)
+
   // Search in a window around the approximate position
   const searchWindow = 100
-  const searchStart = Math.max(0, approximateStart - searchWindow)
-  const searchEnd = Math.min(text.length, approximateStart + searchWindow)
-  const searchText = text.substring(searchStart, searchEnd)
-  
-  const index = searchText.indexOf(target)
-  if (index !== -1) {
-    const actualStart = searchStart + index
-    const actualEnd = actualStart + target.length
-    console.log("✅ Found correct position:", { start: actualStart, end: actualEnd })
-    return { start: actualStart, end: actualEnd }
+  const windowStart = Math.max(0, approximateStart - searchWindow)
+  const windowEnd = Math.min(text.length, approximateStart + searchText.length + searchWindow)
+  const searchArea = text.substring(windowStart, windowEnd)
+
+  const relativeIndex = searchArea.indexOf(searchText)
+  if (relativeIndex !== -1) {
+    const actualStart = windowStart + relativeIndex
+    console.log("✅ Found correct position:", actualStart)
+    return {
+      start: actualStart,
+      end: actualStart + searchText.length
+    }
   }
-  
-  console.log("❌ Could not find correct position for:", target)
+
+  console.log("❌ Could not find correct position")
   return null
 }
 
