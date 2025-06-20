@@ -1,0 +1,11 @@
+incorrect_sentence,expected_spelling_errors,expected_grammar_errors
+"The docter recieve the paitent yesterday.","[""docter"",""recieve"",""paitent""]",1
+"She dont have no time for this.","[""dont""]",2
+"The patient's BP was measued at the hospitol.","[""measued"",""hospitol""]",0
+"Me and him went to see the paitent with CHF.","[""paitent""]",1
+"The ECG shoed abnormal rythm patterns.","[""shoed"",""rythm""]",0
+"I seen the X-ray results and they was concerning.","[]",2
+"The medicin was administerd intravenously.","[""medicin"",""administerd""]",0
+"There was alot of inflamation in the joint.","[""alot"",""inflamation""]",0
+"The surgeon dont think the procedure is necesary.","[""necesary""]",1
+"We need to moniter the patient's vitals closly.","[""moniter"",""closly""]",0 
