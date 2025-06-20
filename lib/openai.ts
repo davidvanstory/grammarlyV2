@@ -78,7 +78,7 @@ Analyze the following medical text:`
 
 // Configuration for OpenAI API calls
 export const OPENAI_CONFIG = {
-  model: "gpt-4o", // Use GPT-4o for better accuracy
+  model: "gpt-4o-mini", // Use GPT-4o for better accuracy
   temperature: 0.1, // Low temperature for consistent results
   max_tokens: 2000,
   timeout: 30000 // 30 second timeout

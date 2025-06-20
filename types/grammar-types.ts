@@ -118,6 +118,35 @@ export interface EditorState {
   hasUnsavedChanges: boolean
 }
 
+// Text chunking for parallel processing
+export interface TextChunk {
+  id: string
+  text: string
+  startOffset: number
+  endOffset: number
+  sentenceCount: number
+  isComplete: boolean
+}
+
+export interface ChunkedGrammarRequest {
+  chunks: TextChunk[]
+  originalText: string
+  forceRecheck?: boolean
+  previousErrors?: TrackedError[]
+}
+
+export interface ChunkedGrammarResponse {
+  chunks: Array<{
+    chunkId: string
+    errors: GrammarError[]
+    processingTime: number
+  }>
+  totalProcessingTime: number
+  combinedErrors: GrammarError[]
+  cacheHits: number
+  cacheMisses: number
+}
+
 // Error highlighting span attributes
 export interface ErrorSpanAttributes {
   "data-error-id": string

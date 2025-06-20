@@ -1,0 +1,48 @@
+Grammar API Test Results - 2025-06-20T20:00:57.046Z
+================================================================================
+
+INDIVIDUAL TEST RESULTS:
+----------------------------------------
+Sentence 1: 2/3 spelling errors, 1/1 grammar errors detected, API time: 3226ms
+  Text: "The docter recieve the paitent yesterday."
+
+Sentence 2: 0/1 spelling errors, 1/1 grammar errors detected, API time: 2870ms
+  Text: "She dont have no time for this."
+
+Sentence 3: 2/2 spelling errors, 0/0 grammar errors detected, API time: 1772ms
+  Text: "The patient's BP was measued at the hospitol."
+
+Sentence 4: 1/1 spelling errors, 0/1 grammar errors detected, API time: 802ms
+  Text: "Me and him went to see the paitent with CHF."
+
+Sentence 5: 2/2 spelling errors, 0/0 grammar errors detected, API time: 2026ms
+  Text: "The ECG shoed abnormal rythm patterns."
+
+Sentence 6: 0/0 spelling errors, 1/1 grammar errors detected, API time: 1492ms
+  Text: "I seen the X-ray results and they was concerning."
+
+Sentence 7: 1/2 spelling errors, 0/0 grammar errors detected, API time: 1328ms
+  Text: "The medicin was administerd intravenously."
+
+Sentence 8: 2/2 spelling errors, 0/0 grammar errors detected, API time: 2418ms
+  Text: "There was alot of inflamation in the joint."
+
+Sentence 9: 1/1 spelling errors, 1/1 grammar errors detected, API time: 2448ms
+  Text: "The surgeon dont think the procedure is necesary."
+
+Sentence 10: 1/2 spelling errors, 0/0 grammar errors detected, API time: 2200ms
+  Text: "We need to moniter the patient's vitals closly."
+
+
+SUMMARY RESULTS:
+----------------------------------------
+Overall Accuracy: 76.2% (16 out of 21 errors)
+Performance Summary:
+- Average API time: 2058ms
+- Minimum API time: 802ms
+- Maximum API time: 3226ms
+- Calls over 2s threshold: 6
+
+PASS/FAIL:
+- Accuracy: FAIL (Goal: 85%, Actual: 76.2%)
+- Performance: FAIL (Goal: <2000ms, Max: 3226ms)

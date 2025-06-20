@@ -14,7 +14,9 @@ interface UseTextChangeOptions {
   onTextChange?: (change: TextChange, newText: string, cursorPosition: CursorPosition) => void
   onSubstantialChange?: (newText: string) => void
   onMinorChange?: (change: TextChange) => void
+  onSentenceComplete?: (newText: string) => void
   substantialChangeThreshold?: number
+  enableSmartDebouncing?: boolean
 }
 
 interface TextChangeState {
@@ -36,7 +38,9 @@ export function useTextChange(
     onTextChange,
     onSubstantialChange,
     onMinorChange,
-    substantialChangeThreshold = 50
+    onSentenceComplete,
+    substantialChangeThreshold = 50,
+    enableSmartDebouncing = true
   } = options
 
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -115,12 +119,22 @@ export function useTextChange(
 
       console.log(`📊 Change size: ${changeSize}, Substantial: ${isSubstantial}`)
 
+      // Check for sentence completion
+      const isSentenceComplete = enableSmartDebouncing && 
+                                 textChange.type === "insert" &&
+                                 /[.!?]\s*$/.test(textChange.newText)
+
+      console.log(`📊 Change analysis: size=${changeSize}, substantial=${isSubstantial}, sentence=${isSentenceComplete}`)
+
       // Call appropriate callbacks
       if (onTextChange) {
         onTextChange(textChange, newText, cursorPosition)
       }
 
-      if (isSubstantial && onSubstantialChange) {
+      if (isSentenceComplete && onSentenceComplete) {
+        console.log("📢 Triggering sentence complete callback")
+        onSentenceComplete(newText)
+      } else if (isSubstantial && onSubstantialChange) {
         console.log("📢 Triggering substantial change callback")
         onSubstantialChange(newText)
       } else if (!isSubstantial && onMinorChange) {

@@ -42,6 +42,8 @@ interface ContentEditableEditorProps {
 // Auto-save configuration
 const AUTO_SAVE_INTERVAL = 30000 // 30 seconds
 const DEBOUNCE_DELAY = 1000 // 1 second debounce for typing
+const GRAMMAR_CHECK_DEBOUNCE = 500 // 500ms for grammar checking (reduced from 2000ms)
+const SENTENCE_END_IMMEDIATE_CHECK = 100 // 100ms delay after sentence completion
 
 export default function ContentEditableEditor({
   document,
@@ -220,21 +222,37 @@ export default function ContentEditableEditor({
     [errors, onGrammarCheck]
   )
 
-  // Phase 5 - Debounced grammar checking
-  const debouncedGrammarCheck = useCallback(
-    (text: string) => {
-      console.log("⏰ Scheduling debounced grammar check...")
+  // Phase 5 - Smart debounced grammar checking
+  const smartGrammarCheck = useCallback(
+    (text: string, isImmediate: boolean = false) => {
+      console.log(
+        `⏰ Scheduling ${isImmediate ? "immediate" : "debounced"} grammar check...`
+      )
 
       // Clear existing timeout
       if (grammarCheckTimeoutRef.current) {
         clearTimeout(grammarCheckTimeoutRef.current)
       }
 
-      // Schedule grammar check with 2 second debounce
+      // Check if text ends with complete sentence for immediate processing
+      const textProcessor = getTextProcessor()
+      const endsWithSentence = textProcessor.endsWithCompleteSentence(text)
+
+      // Determine delay based on context
+      let delay = GRAMMAR_CHECK_DEBOUNCE
+
+      if (isImmediate || endsWithSentence) {
+        delay = SENTENCE_END_IMMEDIATE_CHECK
+        console.log("⚡ Using immediate check - sentence completed or forced")
+      }
+
+      // Schedule grammar check with smart timing
       grammarCheckTimeoutRef.current = setTimeout(() => {
-        console.log("🚀 Executing debounced grammar check")
+        console.log(
+          `🚀 Executing ${isImmediate || endsWithSentence ? "immediate" : "debounced"} grammar check`
+        )
         performGrammarCheck(text)
-      }, 2000)
+      }, delay)
     },
     [performGrammarCheck]
   )
@@ -269,15 +287,15 @@ export default function ContentEditableEditor({
         }
       }
 
-      // Phase 5 - Trigger debounced grammar check
+      // Phase 5 - Trigger smart grammar check
       if (newText.trim().length > 10) {
         console.log("🤖 Scheduling grammar check for text change")
-        debouncedGrammarCheck(newText)
+        smartGrammarCheck(newText)
       }
 
       // Note: Save will be triggered by the existing auto-save mechanism
     },
-    [updateEditorState, debouncedGrammarCheck]
+    [updateEditorState, smartGrammarCheck]
   )
 
   const handleSubstantialTextChange = useCallback(
@@ -305,14 +323,27 @@ export default function ContentEditableEditor({
     [performGrammarCheck]
   )
 
-  // Phase 4 hooks - Position tracking and text change detection
+  // Handle sentence completion for immediate grammar checking
+  const handleSentenceComplete = useCallback(
+    (newText: string) => {
+      console.log("📝 Sentence completed - triggering immediate grammar check")
+      if (newText.trim().length > 10) {
+        smartGrammarCheck(newText, true) // Force immediate check
+      }
+    },
+    [smartGrammarCheck]
+  )
+
+  // Phase 4 hooks - Position tracking and text change detection with smart debouncing
   const textChangeHook = useTextChange(
     editorRef as React.RefObject<HTMLElement>,
     {
       debounceMs: 300,
       onTextChange: handleTextChangeWithPositionTracking,
       onSubstantialChange: handleSubstantialTextChange,
-      substantialChangeThreshold: 50
+      onSentenceComplete: handleSentenceComplete,
+      substantialChangeThreshold: 50,
+      enableSmartDebouncing: true
     }
   )
 
