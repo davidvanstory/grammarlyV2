@@ -41,7 +41,7 @@ CRITICAL REQUIREMENTS:
 2. Be familiar with common medical abbreviations (e.g., BP, HR, ECG, MRI, etc.)
 3. Understand medical context and terminology
 4. Provide precise character positions for each error
-5. Return response in strict JSON format
+5. Return response in strict JSON format - NO markdown code blocks, NO backticks, just pure JSON
 
 MEDICAL TERMINOLOGY AWARENESS:
 - Recognize anatomical terms (e.g., myocardium, pericardium, ventricle)

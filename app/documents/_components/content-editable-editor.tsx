@@ -19,8 +19,12 @@ import {
   TextChange,
   CursorPosition,
   EditorState,
-  TextProcessingResult
+  TextProcessingResult,
+  GrammarCheckRequest,
+  GrammarCheckResponse
 } from "@/types/grammar-types"
+// Phase 5 imports - Grammar checking integration
+import { convertToTrackedErrors } from "@/lib/error-parser"
 
 /*
 <ai_context>
@@ -32,6 +36,7 @@ Implements rich text editing with auto-save, title editing, and medical writing 
 interface ContentEditableEditorProps {
   document: SelectDocument | null
   onDocumentUpdate: (document: SelectDocument) => void
+  onGrammarCheck?: (errors: TrackedError[]) => void
 }
 
 // Auto-save configuration
@@ -40,7 +45,8 @@ const DEBOUNCE_DELAY = 1000 // 1 second debounce for typing
 
 export default function ContentEditableEditor({
   document,
-  onDocumentUpdate
+  onDocumentUpdate,
+  onGrammarCheck
 }: ContentEditableEditorProps) {
   console.log(
     "📝 Rendering content editor for document:",
@@ -72,12 +78,21 @@ export default function ContentEditableEditor({
     hasUnsavedChanges: false
   })
 
+  // Phase 5 state - Grammar checking
+  const [isGrammarChecking, setIsGrammarChecking] = useState(false)
+  const [lastGrammarCheck, setLastGrammarCheck] = useState<Date | null>(null)
+  const [grammarCheckError, setGrammarCheckError] = useState<string | null>(
+    null
+  )
+
   // Refs
   const editorRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const positionTrackerRef = useRef<PositionTracker | null>(null)
+  const grammarCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const grammarCheckAbortControllerRef = useRef<AbortController | null>(null)
 
   // Phase 4 hooks - Position tracking and text change detection
   const cursorPosition = useCursorPosition(
@@ -104,10 +119,125 @@ export default function ContentEditableEditor({
         content: newContent,
         cursorPosition: currentCursor,
         hasUnsavedChanges: newContent !== (document?.content || ""),
-        isProcessing: isProcessingText
+        isProcessing: isProcessingText || isGrammarChecking
       }))
     },
-    [document?.content, isProcessingText]
+    [document?.content, isProcessingText, isGrammarChecking]
+  )
+
+  // Phase 5 - Grammar checking function
+  const performGrammarCheck = useCallback(
+    async (text: string, forceRecheck: boolean = false) => {
+      console.log("🤖 Starting grammar check...")
+      console.log("📝 Text length:", text.length)
+      console.log("🔄 Force recheck:", forceRecheck)
+
+      // Skip if text is too short or too long
+      if (text.trim().length < 10) {
+        console.log("⚠️ Text too short for grammar check")
+        return
+      }
+
+      if (text.length > 10000) {
+        console.log("⚠️ Text too long for grammar check")
+        return
+      }
+
+      // Cancel any existing grammar check
+      if (grammarCheckAbortControllerRef.current) {
+        console.log("🛑 Cancelling previous grammar check")
+        grammarCheckAbortControllerRef.current.abort()
+      }
+
+      // Create new abort controller
+      const abortController = new AbortController()
+      grammarCheckAbortControllerRef.current = abortController
+
+      setIsGrammarChecking(true)
+      setGrammarCheckError(null)
+
+      try {
+        const request: GrammarCheckRequest = {
+          text,
+          previousErrors: errors,
+          forceRecheck,
+          medicalContext: true
+        }
+
+        console.log("🌐 Calling grammar check API...")
+        const response = await fetch("/api/grammar-check", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(request),
+          signal: abortController.signal
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Grammar check failed")
+        }
+
+        const result = await response.json()
+        console.log("✅ Grammar check API response received")
+        console.log("📊 Found", result.data.errors.length, "errors")
+
+        if (result.success && result.data) {
+          const grammarResponse = result.data as GrammarCheckResponse
+
+          // Convert to tracked errors
+          const trackedErrors = convertToTrackedErrors(grammarResponse.errors)
+
+          console.log("🔄 Converting to tracked errors:", trackedErrors.length)
+
+          // Update errors state
+          setErrors(trackedErrors)
+          setLastGrammarCheck(new Date())
+
+          // Notify parent component
+          if (onGrammarCheck) {
+            onGrammarCheck(trackedErrors)
+          }
+
+          console.log("✅ Grammar check completed successfully")
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          console.log("🛑 Grammar check aborted")
+          return
+        }
+
+        console.error("❌ Grammar check failed:", error)
+        const errorMessage =
+          error instanceof Error ? error.message : "Grammar check failed"
+        setGrammarCheckError(errorMessage)
+        toast.error(`Grammar check failed: ${errorMessage}`)
+      } finally {
+        setIsGrammarChecking(false)
+        grammarCheckAbortControllerRef.current = null
+      }
+    },
+    [errors, onGrammarCheck]
+  )
+
+  // Phase 5 - Debounced grammar checking
+  const debouncedGrammarCheck = useCallback(
+    (text: string) => {
+      console.log("⏰ Scheduling debounced grammar check...")
+
+      // Clear existing timeout
+      if (grammarCheckTimeoutRef.current) {
+        clearTimeout(grammarCheckTimeoutRef.current)
+      }
+
+      // Schedule grammar check with 2 second debounce
+      grammarCheckTimeoutRef.current = setTimeout(() => {
+        console.log("🚀 Executing debounced grammar check")
+        performGrammarCheck(text)
+      }, 2000)
+    },
+    [performGrammarCheck]
   )
 
   const handleTextChangeWithPositionTracking = useCallback(
@@ -140,22 +270,41 @@ export default function ContentEditableEditor({
         }
       }
 
+      // Phase 5 - Trigger debounced grammar check
+      if (newText.trim().length > 10) {
+        console.log("🤖 Scheduling grammar check for text change")
+        debouncedGrammarCheck(newText)
+      }
+
       // Note: Save will be triggered by the existing auto-save mechanism
     },
-    [updateEditorState]
+    [updateEditorState, debouncedGrammarCheck]
   )
 
-  const handleSubstantialTextChange = useCallback((newText: string) => {
-    console.log("📢 Substantial text change detected:", newText.length, "chars")
+  const handleSubstantialTextChange = useCallback(
+    (newText: string) => {
+      console.log(
+        "📢 Substantial text change detected:",
+        newText.length,
+        "chars"
+      )
 
-    // Clear existing errors on substantial changes
-    setErrors([])
+      // Clear existing errors on substantial changes
+      setErrors([])
 
-    // Update position tracker
-    if (editorRef.current && positionTrackerRef.current) {
-      positionTrackerRef.current.updatePositionMap()
-    }
-  }, [])
+      // Update position tracker
+      if (editorRef.current && positionTrackerRef.current) {
+        positionTrackerRef.current.updatePositionMap()
+      }
+
+      // Phase 5 - Force grammar check on substantial changes
+      if (newText.trim().length > 10) {
+        console.log("🤖 Forcing grammar check for substantial change")
+        performGrammarCheck(newText, true)
+      }
+    },
+    [performGrammarCheck]
+  )
 
   // Phase 4 hooks - Position tracking and text change detection
   const textChangeHook = useTextChange(
@@ -390,6 +539,12 @@ export default function ContentEditableEditor({
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current)
       }
+      if (grammarCheckTimeoutRef.current) {
+        clearTimeout(grammarCheckTimeoutRef.current)
+      }
+      if (grammarCheckAbortControllerRef.current) {
+        grammarCheckAbortControllerRef.current.abort()
+      }
     }
   }, [])
 
@@ -491,6 +646,31 @@ export default function ContentEditableEditor({
               <>
                 <CheckCircle className="size-4 text-green-500" />
                 <span>Saved</span>
+              </>
+            )}
+          </div>
+
+          {/* Grammar Check Status */}
+          <div className="flex items-center gap-1">
+            {isGrammarChecking ? (
+              <>
+                <Clock className="size-4 animate-spin text-blue-500" />
+                <span className="text-blue-600">Checking grammar...</span>
+              </>
+            ) : grammarCheckError ? (
+              <>
+                <AlertCircle className="size-4 text-red-500" />
+                <span className="text-red-500">Check failed</span>
+              </>
+            ) : lastGrammarCheck ? (
+              <>
+                <CheckCircle className="size-4 text-green-500" />
+                <span>{errors.length} suggestions</span>
+              </>
+            ) : (
+              <>
+                <Clock className="size-4 text-slate-400" />
+                <span>Grammar check pending</span>
               </>
             )}
           </div>
@@ -628,14 +808,18 @@ export default function ContentEditableEditor({
           </div>
         )}
 
-        {/* Phase 4 Debug Info (remove in production) */}
+        {/* Phase 4 & 5 Debug Info (remove in production) */}
         {process.env.NODE_ENV === "development" && (
           <div className="absolute bottom-4 right-4 rounded bg-slate-900 p-2 text-xs text-white opacity-80">
             <div>📊 Errors: {errors.length}</div>
             <div>📝 Processing: {isProcessingText ? "Yes" : "No"}</div>
+            <div>🤖 Grammar Check: {isGrammarChecking ? "Yes" : "No"}</div>
             <div>📍 Cursor: {cursorPosition.getCurrentPosition().offset}</div>
             {textProcessingResult && (
               <div>📏 Text: {textProcessingResult.plainText.length} chars</div>
+            )}
+            {lastGrammarCheck && (
+              <div>⏰ Last Check: {lastGrammarCheck.toLocaleTimeString()}</div>
             )}
           </div>
         )}

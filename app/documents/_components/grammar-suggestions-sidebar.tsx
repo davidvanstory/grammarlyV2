@@ -1,11 +1,20 @@
 "use client"
 
-import { Brain, BookOpen, Target, AlertTriangle } from "lucide-react"
+import {
+  Brain,
+  BookOpen,
+  Target,
+  AlertTriangle,
+  Clock,
+  CheckCircle
+} from "lucide-react"
 import { SelectDocument } from "@/db/schema/documents-schema"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
+import { TrackedError, ErrorType } from "@/types/grammar-types"
 
 /*
 <ai_context>
@@ -16,14 +25,62 @@ Provides placeholder structure for future grammar suggestions, readability score
 
 interface GrammarSuggestionsSidebarProps {
   document: SelectDocument | null
+  errors?: TrackedError[]
+  isGrammarChecking?: boolean
+  onErrorClick?: (error: TrackedError) => void
 }
 
 export default function GrammarSuggestionsSidebar({
-  document
+  document,
+  errors = [],
+  isGrammarChecking = false,
+  onErrorClick
 }: GrammarSuggestionsSidebarProps) {
   console.log(
     "📝 Rendering grammar suggestions sidebar for document:",
     document?.title || "None"
+  )
+  console.log("📊 Grammar errors:", errors.length)
+  console.log("🤖 Grammar checking:", isGrammarChecking)
+
+  // Helper function to get error type color
+  const getErrorTypeColor = (type: ErrorType): string => {
+    switch (type) {
+      case "spelling":
+        return "bg-red-100 text-red-800"
+      case "grammar":
+        return "bg-blue-100 text-blue-800"
+      case "style":
+        return "bg-orange-100 text-orange-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  // Helper function to get error type icon
+  const getErrorTypeIcon = (type: ErrorType): string => {
+    switch (type) {
+      case "spelling":
+        return "🔤"
+      case "grammar":
+        return "📝"
+      case "style":
+        return "✨"
+      default:
+        return "❓"
+    }
+  }
+
+  // Group errors by type
+  const errorsByType = errors.reduce(
+    (acc, error) => {
+      if (!acc[error.type]) {
+        acc[error.type] = []
+      }
+      acc[error.type].push(error)
+      return acc
+    },
+    {} as Record<ErrorType, TrackedError[]>
   )
 
   // Calculate basic readability metrics (placeholder implementation)
@@ -170,26 +227,137 @@ export default function GrammarSuggestionsSidebar({
                 </CardContent>
               </Card>
 
-              {/* Grammar Suggestions (Placeholder) */}
+              {/* Grammar Suggestions */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <AlertTriangle className="size-4 text-amber-600" />
-                    Grammar Suggestions
+                  <CardTitle className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="size-4 text-amber-600" />
+                      Grammar Suggestions
+                    </div>
+                    {isGrammarChecking && (
+                      <Clock className="size-4 animate-spin text-blue-500" />
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="py-4 text-center text-slate-500">
-                    <div className="mx-auto mb-2 flex size-8 items-center justify-center rounded-full bg-slate-200">
-                      <Brain className="size-4 text-slate-400" />
+                  {isGrammarChecking ? (
+                    <div className="py-4 text-center text-slate-500">
+                      <div className="mx-auto mb-2 flex size-8 items-center justify-center rounded-full bg-blue-100">
+                        <Clock className="size-4 animate-spin text-blue-600" />
+                      </div>
+                      <p className="text-xs">Checking grammar...</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        AI is analyzing your text
+                      </p>
                     </div>
-                    <p className="text-xs">
-                      AI grammar checking will appear here
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Coming in Phase 5
-                    </p>
-                  </div>
+                  ) : errors.length === 0 ? (
+                    <div className="py-4 text-center text-slate-500">
+                      <div className="mx-auto mb-2 flex size-8 items-center justify-center rounded-full bg-green-100">
+                        <CheckCircle className="size-4 text-green-600" />
+                      </div>
+                      <p className="text-xs">No issues found</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Your writing looks great!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Error Summary */}
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(errorsByType).map(
+                          ([type, typeErrors]) => (
+                            <Badge
+                              key={type}
+                              className={getErrorTypeColor(type as ErrorType)}
+                            >
+                              {getErrorTypeIcon(type as ErrorType)}{" "}
+                              {typeErrors.length} {type}
+                            </Badge>
+                          )
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      {/* Error List */}
+                      <div className="max-h-64 space-y-2 overflow-y-auto">
+                        {errors.slice(0, 10).map((error, index) => (
+                          <div
+                            key={error.id}
+                            className="cursor-pointer rounded-lg border border-slate-200 p-3 transition-colors hover:bg-slate-50"
+                            onClick={() => onErrorClick?.(error)}
+                          >
+                            <div className="mb-2 flex items-start justify-between">
+                              <Badge
+                                className={`${getErrorTypeColor(error.type)} text-xs`}
+                              >
+                                {getErrorTypeIcon(error.type)} {error.type}
+                              </Badge>
+                              <span className="text-xs text-slate-400">
+                                {error.start}-{error.end}
+                              </span>
+                            </div>
+
+                            <div className="mb-2">
+                              <p className="mb-1 text-xs text-slate-600">
+                                <span className="font-medium">Issue:</span> "
+                                {error.original}"
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {error.explanation}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-slate-700">
+                                Suggestions:
+                              </p>
+                              {error.suggestions
+                                .slice(0, 2)
+                                .map((suggestion, i) => (
+                                  <Button
+                                    key={i}
+                                    variant="outline"
+                                    size="sm"
+                                    className="mr-1 h-6 px-2 text-xs"
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      // TODO: Apply suggestion in Phase 6
+                                      console.log(
+                                        "Apply suggestion:",
+                                        suggestion
+                                      )
+                                    }}
+                                  >
+                                    {suggestion}
+                                  </Button>
+                                ))}
+                            </div>
+
+                            {error.medical_context && (
+                              <div className="mt-2 rounded bg-blue-50 p-2 text-xs">
+                                <span className="font-medium text-blue-700">
+                                  Medical context:
+                                </span>{" "}
+                                <span className="text-blue-600">
+                                  {error.medical_context}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {errors.length > 10 && (
+                          <div className="py-2 text-center">
+                            <p className="text-xs text-slate-500">
+                              Showing 10 of {errors.length} suggestions
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

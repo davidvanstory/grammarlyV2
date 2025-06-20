@@ -7,6 +7,7 @@ import {
   ResizablePanel,
   ResizableHandle
 } from "@/components/ui/resizable"
+import { TrackedError } from "@/types/grammar-types"
 import DocumentListSidebar from "./document-list-sidebar"
 import ContentEditableEditor from "./content-editable-editor"
 import GrammarSuggestionsSidebar from "./grammar-suggestions-sidebar"
@@ -44,6 +45,10 @@ export default function ThreePanelLayout({
   // State for panel visibility
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false)
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false)
+
+  // Phase 5 - Grammar checking state
+  const [grammarErrors, setGrammarErrors] = useState<TrackedError[]>([])
+  const [isGrammarChecking, setIsGrammarChecking] = useState(false)
 
   console.log(
     "📄 Current selected document:",
@@ -88,6 +93,19 @@ export default function ThreePanelLayout({
     }
   }
 
+  // Phase 5 - Handle grammar check results
+  const handleGrammarCheck = (errors: TrackedError[]) => {
+    console.log("🤖 Received grammar check results:", errors.length, "errors")
+    setGrammarErrors(errors)
+    setIsGrammarChecking(false)
+  }
+
+  // Phase 5 - Handle grammar error clicks
+  const handleGrammarErrorClick = (error: TrackedError) => {
+    console.log("🖱️ Grammar error clicked:", error.id, error.type)
+    // TODO: Scroll to error position and highlight it in Phase 6
+  }
+
   return (
     <div className="h-full bg-slate-50">
       <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -122,6 +140,7 @@ export default function ThreePanelLayout({
           <ContentEditableEditor
             document={selectedDocument}
             onDocumentUpdate={handleDocumentUpdate}
+            onGrammarCheck={handleGrammarCheck}
           />
         </ResizablePanel>
 
@@ -140,7 +159,12 @@ export default function ThreePanelLayout({
           onExpand={() => setRightPanelCollapsed(false)}
           className={rightPanelCollapsed ? "min-w-0" : "min-w-72"}
         >
-          <GrammarSuggestionsSidebar document={selectedDocument} />
+          <GrammarSuggestionsSidebar
+            document={selectedDocument}
+            errors={grammarErrors}
+            isGrammarChecking={isGrammarChecking}
+            onErrorClick={handleGrammarErrorClick}
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
