@@ -332,6 +332,15 @@ export default function ContentEditableEditor({
       setIsProcessingText(false)
       setTextProcessingResult(null)
       updateEditorState(document.content)
+
+      // NEW: Trigger grammar check for newly loaded document
+      if (document.content.trim().length > 10) {
+        console.log("🤖 Triggering initial grammar check for new document")
+        // Use setTimeout to allow UI to update first
+        setTimeout(() => {
+          performGrammarCheck(document.content, true)
+        }, 1000) // 1 second delay to allow content to load
+      }
     } else {
       console.log("📝 No document selected, clearing editor")
       setContent("")

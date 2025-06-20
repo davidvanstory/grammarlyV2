@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SelectDocument } from "@/db/schema/documents-schema"
 import {
   ResizablePanelGroup,
@@ -55,10 +55,19 @@ export default function ThreePanelLayout({
     selectedDocument?.title || "None"
   )
 
+  // NEW: Clear grammar errors when document changes
+  useEffect(() => {
+    console.log("🧹 Document changed, clearing grammar errors and state")
+    setGrammarErrors([])
+    setIsGrammarChecking(false)
+  }, [selectedDocument?.id]) // Only trigger when document ID changes
+
   // Handle document selection
   const handleDocumentSelect = (document: SelectDocument) => {
     console.log("📄 Selecting document:", document.title)
+    console.log("🧹 Will clear grammar errors for new document")
     setSelectedDocument(document)
+    // Note: Grammar errors will be cleared by the useEffect above
   }
 
   // Handle document creation
