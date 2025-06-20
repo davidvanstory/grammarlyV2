@@ -1,21 +1,34 @@
 /*
 <ai_context>
-Contains the OpenAI client configuration for grammar checking and medical text analysis.
+Server-side OpenAI client configuration for grammar checking and medical text analysis.
+This file should only be imported in server-side code to avoid client-side instantiation.
 </ai_context>
 */
 
 import OpenAI from "openai"
 
-// Initialize OpenAI client with error handling
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Server-side OpenAI client factory function
+export function createOpenAIClient(): OpenAI {
+  console.log("🤖 Creating OpenAI client...")
 
-// Validate that API key is configured
-if (!process.env.OPENAI_API_KEY) {
-  console.warn(
-    "⚠️ OPENAI_API_KEY is not configured. OpenAI features will not work."
-  )
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("❌ OPENAI_API_KEY is not configured")
+    throw new Error("OPENAI_API_KEY environment variable is required")
+  }
+
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  })
+}
+
+// Get or create OpenAI client instance (server-side only)
+let openaiInstance: OpenAI | null = null
+
+export function getOpenAIClient(): OpenAI {
+  if (!openaiInstance) {
+    openaiInstance = createOpenAIClient()
+  }
+  return openaiInstance
 }
 
 // Medical-specific prompts for grammar checking
@@ -69,82 +82,6 @@ export const OPENAI_CONFIG = {
   max_tokens: 2000,
   timeout: 30000 // 30 second timeout
 } as const
-
-// Medical terminology dictionary (expandable)
-export const MEDICAL_TERMS = new Set([
-  // Common medical abbreviations
-  "BP",
-  "HR",
-  "ECG",
-  "EKG",
-  "MRI",
-  "CT",
-  "CBC",
-  "BUN",
-  "CHF",
-  "COPD",
-  "MI",
-  "CVA",
-  "ICU",
-  "ER",
-  "OR",
-  "IV",
-  "IM",
-  "PO",
-  "PRN",
-  "BID",
-  "TID",
-  "QID",
-  "QD",
-
-  // Anatomical terms
-  "myocardium",
-  "pericardium",
-  "endocardium",
-  "ventricle",
-  "atrium",
-  "aorta",
-  "pulmonary",
-  "hepatic",
-  "renal",
-  "cardiac",
-  "thoracic",
-  "abdominal",
-
-  // Common medical terms
-  "diagnosis",
-  "prognosis",
-  "etiology",
-  "pathophysiology",
-  "symptom",
-  "syndrome",
-  "treatment",
-  "therapy",
-  "medication",
-  "dosage",
-  "contraindication",
-
-  // Units and measurements
-  "mg",
-  "mL",
-  "mmHg",
-  "bpm",
-  "kg",
-  "cm",
-  "mm",
-  "L",
-  "dL",
-  "mcg",
-  "IU"
-])
-
-// Helper function to check if a term is medical
-export function isMedicalTerm(term: string): boolean {
-  return (
-    MEDICAL_TERMS.has(term.toUpperCase()) ||
-    MEDICAL_TERMS.has(term.toLowerCase())
-  )
-}
 
 // Error handling for OpenAI API calls
 export class OpenAIError extends Error {

@@ -8,6 +8,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 
+// Phase 4 imports - Position tracking and text processing
+import { createPositionTracker, PositionTracker } from "@/lib/position-tracker"
+import { processContentEditable, getTextProcessor } from "@/lib/text-processor"
+import { useCursorPosition } from "@/hooks/use-cursor-position"
+import { useTextChange } from "@/hooks/use-text-change"
+import ErrorHighlight from "@/components/editor/error-highlight"
+import {
+  TrackedError,
+  TextChange,
+  CursorPosition,
+  EditorState,
+  TextProcessingResult
+} from "@/types/grammar-types"
+
 /*
 <ai_context>
 Content-editable editor component for the Med Writer application.
@@ -44,11 +58,115 @@ export default function ContentEditableEditor({
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  // Phase 4 state - Position tracking and error management
+  const [errors, setErrors] = useState<TrackedError[]>([])
+  const [isProcessingText, setIsProcessingText] = useState(false)
+  const [textProcessingResult, setTextProcessingResult] =
+    useState<TextProcessingResult | null>(null)
+  const [editorState, setEditorState] = useState<EditorState>({
+    content: "",
+    cursorPosition: { offset: 0, node: null, nodeOffset: 0, isAtEnd: false },
+    errors: [],
+    lastCheck: null,
+    isProcessing: false,
+    hasUnsavedChanges: false
+  })
+
   // Refs
   const editorRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const positionTrackerRef = useRef<PositionTracker | null>(null)
+
+  // Phase 4 hooks - Position tracking and text change detection
+  const cursorPosition = useCursorPosition(
+    editorRef as React.RefObject<HTMLElement>
+  )
+
+  // Phase 4 helper functions
+  const updateEditorState = useCallback(
+    (newContent: string) => {
+      console.log(
+        "🔄 Updating editor state with new content:",
+        newContent.length,
+        "chars"
+      )
+      const currentCursor = cursorPosition?.getCurrentPosition() || {
+        offset: 0,
+        node: null,
+        nodeOffset: 0,
+        isAtEnd: false
+      }
+
+      setEditorState(prev => ({
+        ...prev,
+        content: newContent,
+        cursorPosition: currentCursor,
+        hasUnsavedChanges: newContent !== (document?.content || ""),
+        isProcessing: isProcessingText
+      }))
+    },
+    [document?.content, isProcessingText]
+  )
+
+  const handleTextChangeWithPositionTracking = useCallback(
+    (change: TextChange, newText: string, cursor: CursorPosition) => {
+      console.log("📝 Text change with position tracking:", change.type)
+
+      // Update content state
+      setContent(newText)
+      setHasUnsavedChanges(true)
+
+      // Update editor state
+      updateEditorState(newText)
+
+      // Process text for position mapping
+      if (editorRef.current) {
+        setIsProcessingText(true)
+        try {
+          const processor = getTextProcessor()
+          const result = processor.htmlToPlainText(editorRef.current)
+          setTextProcessingResult(result)
+          console.log(
+            "📝 Text processing complete:",
+            result.plainText.length,
+            "chars"
+          )
+        } catch (error) {
+          console.error("❌ Error processing text:", error)
+        } finally {
+          setIsProcessingText(false)
+        }
+      }
+
+      // Note: Save will be triggered by the existing auto-save mechanism
+    },
+    [updateEditorState]
+  )
+
+  const handleSubstantialTextChange = useCallback((newText: string) => {
+    console.log("📢 Substantial text change detected:", newText.length, "chars")
+
+    // Clear existing errors on substantial changes
+    setErrors([])
+
+    // Update position tracker
+    if (editorRef.current && positionTrackerRef.current) {
+      positionTrackerRef.current.updatePositionMap()
+    }
+  }, [])
+
+  // Phase 4 hooks - Position tracking and text change detection
+  const textChangeHook = useTextChange(
+    editorRef as React.RefObject<HTMLElement>,
+    {
+      debounceMs: 300,
+      onTextChange: handleTextChangeWithPositionTracking,
+      onSubstantialChange: handleSubstantialTextChange,
+      substantialChangeThreshold: 50
+    }
+  )
 
   // Update local state when document prop changes
   useEffect(() => {
@@ -59,6 +177,12 @@ export default function ContentEditableEditor({
       setHasUnsavedChanges(false)
       setSaveError(null)
       setLastSaved(new Date(document.updatedAt))
+
+      // Reset Phase 4 state for new document
+      setErrors([])
+      setIsProcessingText(false)
+      setTextProcessingResult(null)
+      updateEditorState(document.content)
     } else {
       console.log("📝 No document selected, clearing editor")
       setContent("")
@@ -66,8 +190,33 @@ export default function ContentEditableEditor({
       setHasUnsavedChanges(false)
       setSaveError(null)
       setLastSaved(null)
+
+      // Clear Phase 4 state
+      setErrors([])
+      setIsProcessingText(false)
+      setTextProcessingResult(null)
+      updateEditorState("")
     }
   }, [document])
+
+  // Initialize position tracker when editor ref is available
+  useEffect(() => {
+    if (editorRef.current && !positionTrackerRef.current) {
+      console.log("🎯 Initializing position tracker...")
+      positionTrackerRef.current = createPositionTracker(editorRef.current)
+    }
+  }, [editorRef.current])
+
+  // Handle error interactions
+  const handleErrorClick = useCallback((error: TrackedError) => {
+    console.log("🖱️ Error clicked:", error.id, error.type)
+    // TODO: Show error correction interface in Phase 6
+  }, [])
+
+  const handleErrorHover = useCallback((error: TrackedError | null) => {
+    console.log("🖱️ Error hover:", error?.id || "none")
+    // TODO: Show error tooltip in Phase 6
+  }, [])
 
   // Update editor content when content state changes
   useEffect(() => {
@@ -186,6 +335,8 @@ export default function ContentEditableEditor({
   // Handle content changes
   const handleContentChange = (newContent: string) => {
     console.log("📝 Content changed, length:", newContent.length)
+    console.log("📝 Content is empty:", newContent.trim() === "")
+    console.log("📝 Placeholder should be visible:", newContent.trim() === "")
     setContent(newContent)
     setHasUnsavedChanges(true)
     debouncedSave()
@@ -361,7 +512,7 @@ export default function ContentEditableEditor({
       </div>
 
       {/* Editor */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="relative flex-1 overflow-auto p-6">
         <div
           ref={editorRef}
           contentEditable
@@ -444,16 +595,48 @@ export default function ContentEditableEditor({
           {/* Content will be set via useEffect instead of dangerouslySetInnerHTML */}
         </div>
 
+        {/* Phase 4 - Error Highlighting */}
+        <ErrorHighlight
+          errors={errors}
+          containerRef={editorRef as React.RefObject<HTMLElement>}
+          onErrorClick={handleErrorClick}
+          onErrorHover={handleErrorHover}
+        />
+
         {content.trim() === "" && (
-          <div className="prose prose-slate prose-lg pointer-events-none absolute inset-6 text-slate-400">
-            <p>Start writing your medical document here...</p>
-            <p className="text-sm">Tips for medical writing:</p>
-            <ul className="text-sm">
-              <li>Use clear, concise language</li>
-              <li>Define medical terms when necessary</li>
-              <li>Structure your content logically</li>
-              <li>Auto-save is enabled every 30 seconds</li>
-            </ul>
+          <div className="prose prose-slate prose-lg pointer-events-none absolute inset-x-6 top-6 text-slate-400 transition-opacity duration-200 ease-in-out">
+            <div className="mx-auto max-w-4xl">
+              <p className="mb-4">
+                Start writing your medical document here...
+              </p>
+              <p className="mb-3 text-sm font-medium">
+                Tips for medical writing with Phase 4 enhancements:
+              </p>
+              <ul className="space-y-1 text-sm">
+                <li>
+                  ✨ Advanced position tracking for precise error highlighting
+                </li>
+                <li>
+                  🔍 Real-time text processing with medical terminology
+                  awareness
+                </li>
+                <li>📍 Mathematical cursor position management</li>
+                <li>🎯 Intelligent text change detection with debouncing</li>
+                <li>Auto-save is enabled every 30 seconds</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Phase 4 Debug Info (remove in production) */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="absolute bottom-4 right-4 rounded bg-slate-900 p-2 text-xs text-white opacity-80">
+            <div>📊 Errors: {errors.length}</div>
+            <div>📝 Processing: {isProcessingText ? "Yes" : "No"}</div>
+            <div>📍 Cursor: {cursorPosition.getCurrentPosition().offset}</div>
+            {textProcessingResult && (
+              <div>📏 Text: {textProcessingResult.plainText.length} chars</div>
+            )}
           </div>
         )}
       </div>
