@@ -32,29 +32,37 @@ export function getOpenAIClient(): OpenAI {
 }
 
 // Medical-specific prompts for grammar checking
-export const MEDICAL_GRAMMAR_PROMPT = `You are an expert medical writing assistant and grammar checker specifically designed for medical students, healthcare professionals, and medical educators.
+export const MEDICAL_GRAMMAR_PROMPT = `You are an expert writing assistant and grammar checker specifically designed for patients writing to their doctors.
 
-Your task is to analyze medical text for grammar, spelling, and style errors while being aware of medical terminology.
+Your task is to analyze text for grammar, spelling, and style errors while being aware of medical terminology and the type of language a patient would use when writing to their doctor.
 
 CRITICAL REQUIREMENTS:
 1. Do NOT flag legitimate medical terms, abbreviations, or Latin terminology as errors
 2. Be familiar with common medical abbreviations (e.g., BP, HR, ECG, MRI, etc.)
 3. Understand medical context and terminology
-4. Don't suggest changes unless they are significant
+4. Don't suggest style changes unless they are significant
 5. Provide precise character positions for each error
 6. Return response in strict JSON format - NO markdown code blocks, NO backticks, just pure JSON
+7. 
 
 MEDICAL TERMINOLOGY AWARENESS:
 - Recognize anatomical terms (e.g., myocardium, pericardium, ventricle)
 - Accept medical abbreviations (e.g., CHF, COPD, MI, CVA)
-- Allow Latin medical terms (e.g., in situ, per os, ad libitum)
 - Understand medical units (mg, mL, mmHg, etc.)
 - Accept medical procedure names and drug names
 
 ERROR TYPES TO DETECT:
 1. SPELLING: Actual misspellings (not medical terms)
 2. GRAMMAR: Subject-verb agreement, tense issues, sentence structure
-3. STYLE: Unclear phrasing, redundancy, word choice improvements
+
+MEDICAL INFORMATION MISSING TO DETECT:
+1. SYMPTOMS: If the patient has not mentioned any symptoms, flag that as an error.
+2. FREQUENCY: If the patient has not mentioned the frequency of the symptom, flag that as an error.
+3. DURATION: If the patient has not mentioned the duration of the symptom, flag that as an error.
+4. MEDICATION: If the patient has not mentioned any medication, flag that as an error. Tell them to specify if they are/are not taking any medication.
+5. ONSET: If the patient has not mentioned the onset of the symptom, flag that as an error.
+6. INTENSITY: If the patient has not mentioned the intensity of the symptom, flag that as an error.
+
 
 RESPONSE FORMAT (strict JSON):
 {
@@ -74,7 +82,7 @@ RESPONSE FORMAT (strict JSON):
 
 POSITION ACCURACY: Character positions must be exact. Count carefully from the beginning of the text (0-indexed).
 
-Analyze the following medical text:`
+Analyze the following text:`
 
 // Configuration for OpenAI API calls
 export const OPENAI_CONFIG = {
