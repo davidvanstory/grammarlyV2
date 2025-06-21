@@ -8,14 +8,18 @@ import {
   ResizableHandle
 } from "@/components/ui/resizable"
 import { TrackedError } from "@/types/grammar-types"
+import { MedicalInformation, MedicalField } from "@/types/medical-types"
+import { analyzeMedicalInformationAction } from "@/actions/ai/medical-actions"
 import DocumentListSidebar from "./document-list-sidebar"
 import ContentEditableEditor from "./content-editable-editor"
 import GrammarSuggestionsSidebar from "./grammar-suggestions-sidebar"
+import MedicalInfoSidebar from "./medical-info-sidebar"
 
 /*
 <ai_context>
-Main three-panel layout component for the Med Writer document editor.
-Implements resizable panels with document list (left), editor (center), and grammar suggestions (right).
+Main layout component for the Med Writer document editor.
+Implements resizable panels with document list (left), editor (center), grammar suggestions (right-top), and medical info tracking (right-bottom).
+Keeps medical information tracking modular and separate from grammar checking.
 </ai_context>
 */
 
@@ -29,7 +33,7 @@ export default function ThreePanelLayout({
   userId
 }: ThreePanelLayoutProps) {
   console.log(
-    "🎨 Rendering three-panel layout with documents:",
+    "🎨 Rendering four-panel layout with documents:",
     initialDocuments.length
   )
 
@@ -50,24 +54,45 @@ export default function ThreePanelLayout({
   const [grammarErrors, setGrammarErrors] = useState<TrackedError[]>([])
   const [isGrammarChecking, setIsGrammarChecking] = useState(false)
 
+  // Medical information tracking state (new modular feature)
+  const [medicalAnalysis, setMedicalAnalysis] =
+    useState<MedicalInformation | null>(null)
+  const [isMedicalAnalyzing, setIsMedicalAnalyzing] = useState(false)
+  const [medicalAnalysisError, setMedicalAnalysisError] = useState<
+    string | null
+  >(null)
+
   console.log(
     "📄 Current selected document:",
     selectedDocument?.title || "None"
   )
+  console.log(
+    "🏥 Current medical analysis:",
+    medicalAnalysis?.id || "None",
+    medicalAnalysis?.overallCompleteness || 0,
+    "%"
+  )
 
-  // NEW: Clear grammar errors when document changes
+  // Clear state when document changes
   useEffect(() => {
-    console.log("🧹 Document changed, clearing grammar errors and state")
+    console.log(
+      "🧹 Document changed, clearing grammar errors and medical analysis state"
+    )
     setGrammarErrors([])
     setIsGrammarChecking(false)
+    setMedicalAnalysis(null)
+    setIsMedicalAnalyzing(false)
+    setMedicalAnalysisError(null)
   }, [selectedDocument?.id]) // Only trigger when document ID changes
 
   // Handle document selection
   const handleDocumentSelect = (document: SelectDocument) => {
     console.log("📄 Selecting document:", document.title)
-    console.log("🧹 Will clear grammar errors for new document")
+    console.log(
+      "🧹 Will clear grammar errors and medical analysis for new document"
+    )
     setSelectedDocument(document)
-    // Note: Grammar errors will be cleared by the useEffect above
+    // Note: State will be cleared by the useEffect above
   }
 
   // Handle document creation
@@ -115,6 +140,66 @@ export default function ThreePanelLayout({
     // TODO: Scroll to error position and highlight it in Phase 6
   }
 
+  // Medical Information Analysis Handlers (new modular feature)
+  const handleMedicalAnalysis = async (
+    text: string,
+    forceRecheck: boolean = false
+  ) => {
+    console.log("🏥 Starting medical information analysis...")
+    console.log("📝 Text length:", text.length)
+    console.log("🔄 Force recheck:", forceRecheck)
+
+    // Skip if text is too short
+    if (text.trim().length < 10) {
+      console.log("⚠️ Text too short for medical analysis")
+      return
+    }
+
+    setIsMedicalAnalyzing(true)
+    setMedicalAnalysisError(null)
+
+    try {
+      const result = await analyzeMedicalInformationAction({
+        text,
+        previousAnalysis: medicalAnalysis || undefined,
+        forceRecheck
+      })
+
+      if (result.isSuccess) {
+        console.log("✅ Medical analysis successful")
+        console.log(
+          "📊 Completeness:",
+          result.data.analysis.overallCompleteness,
+          "%"
+        )
+        setMedicalAnalysis(result.data.analysis)
+        setMedicalAnalysisError(null)
+      } else {
+        console.error("❌ Medical analysis failed:", result.message)
+        setMedicalAnalysisError(result.message)
+      }
+    } catch (error) {
+      console.error("❌ Medical analysis error:", error)
+      setMedicalAnalysisError("Medical analysis service unavailable")
+    } finally {
+      setIsMedicalAnalyzing(false)
+    }
+  }
+
+  // Handle medical field clicks
+  const handleMedicalFieldClick = (field: MedicalField) => {
+    console.log("🖱️ Medical field clicked:", field.type, field.status)
+    // TODO: Could scroll to editor and focus on relevant field or show tooltip
+  }
+
+  // Handle medical analysis refresh
+  const handleMedicalAnalysisRefresh = () => {
+    if (selectedDocument?.content) {
+      console.log("🔄 Refreshing medical analysis...")
+      handleMedicalAnalysis(selectedDocument.content, true)
+    }
+  }
+
   return (
     <div className="h-full bg-slate-50">
       <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -145,11 +230,12 @@ export default function ThreePanelLayout({
         />
 
         {/* Center Panel - Text Editor */}
-        <ResizablePanel defaultSize={55} minSize={30}>
+        <ResizablePanel defaultSize={45} minSize={30}>
           <ContentEditableEditor
             document={selectedDocument}
             onDocumentUpdate={handleDocumentUpdate}
             onGrammarCheck={handleGrammarCheck}
+            onMedicalAnalysis={handleMedicalAnalysis}
           />
         </ResizablePanel>
 
@@ -158,22 +244,42 @@ export default function ThreePanelLayout({
           className="bg-slate-200 transition-colors hover:bg-slate-300"
         />
 
-        {/* Right Panel - Grammar Suggestions */}
+        {/* Right Panel - Split into Grammar and Medical Info */}
         <ResizablePanel
-          defaultSize={25}
-          minSize={20}
-          maxSize={40}
+          defaultSize={35}
+          minSize={25}
+          maxSize={50}
           collapsible={true}
           onCollapse={() => setRightPanelCollapsed(true)}
           onExpand={() => setRightPanelCollapsed(false)}
-          className={rightPanelCollapsed ? "min-w-0" : "min-w-72"}
+          className={rightPanelCollapsed ? "min-w-0" : "min-w-80"}
         >
-          <GrammarSuggestionsSidebar
-            document={selectedDocument}
-            errors={grammarErrors}
-            isGrammarChecking={isGrammarChecking}
-            onErrorClick={handleGrammarErrorClick}
-          />
+          <ResizablePanelGroup direction="vertical" className="h-full">
+            {/* Top Right - Grammar Suggestions */}
+            <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+              <GrammarSuggestionsSidebar
+                document={selectedDocument}
+                errors={grammarErrors}
+                isGrammarChecking={isGrammarChecking}
+                onErrorClick={handleGrammarErrorClick}
+              />
+            </ResizablePanel>
+
+            <ResizableHandle
+              withHandle
+              className="bg-slate-200 transition-colors hover:bg-slate-300"
+            />
+
+            {/* Bottom Right - Medical Information Tracking */}
+            <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
+              <MedicalInfoSidebar
+                analysis={medicalAnalysis}
+                isAnalyzing={isMedicalAnalyzing}
+                onFieldClick={handleMedicalFieldClick}
+                onRefresh={handleMedicalAnalysisRefresh}
+              />
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

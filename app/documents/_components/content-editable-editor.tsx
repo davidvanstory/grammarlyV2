@@ -37,6 +37,7 @@ interface ContentEditableEditorProps {
   document: SelectDocument | null
   onDocumentUpdate: (document: SelectDocument) => void
   onGrammarCheck?: (errors: TrackedError[]) => void
+  onMedicalAnalysis?: (text: string, forceRecheck?: boolean) => void
 }
 
 // Auto-save configuration
@@ -48,7 +49,8 @@ const SENTENCE_END_IMMEDIATE_CHECK = 100 // 100ms delay after sentence completio
 export default function ContentEditableEditor({
   document,
   onDocumentUpdate,
-  onGrammarCheck
+  onGrammarCheck,
+  onMedicalAnalysis
 }: ContentEditableEditorProps) {
   console.log(
     "📝 Rendering content editor for document:",
@@ -293,6 +295,12 @@ export default function ContentEditableEditor({
         smartGrammarCheck(newText)
       }
 
+      // Medical Analysis - Trigger medical information analysis (modular feature)
+      if (onMedicalAnalysis && newText.trim().length > 10) {
+        console.log("🏥 Triggering medical analysis for text change")
+        onMedicalAnalysis(newText)
+      }
+
       // Note: Save will be triggered by the existing auto-save mechanism
     },
     [updateEditorState, smartGrammarCheck]
@@ -319,8 +327,14 @@ export default function ContentEditableEditor({
         console.log("🤖 Forcing grammar check for substantial change")
         performGrammarCheck(newText, true)
       }
+
+      // Medical Analysis - Force medical analysis on substantial changes (modular feature)
+      if (onMedicalAnalysis && newText.trim().length > 10) {
+        console.log("🏥 Forcing medical analysis for substantial change")
+        onMedicalAnalysis(newText, true)
+      }
     },
-    [performGrammarCheck]
+    [performGrammarCheck, onMedicalAnalysis]
   )
 
   // Handle sentence completion for immediate grammar checking
@@ -370,6 +384,14 @@ export default function ContentEditableEditor({
         setTimeout(() => {
           performGrammarCheck(document.content, true)
         }, 1000) // 1 second delay to allow content to load
+      }
+
+      // Medical Analysis - Trigger initial medical analysis for newly loaded document (modular feature)
+      if (onMedicalAnalysis && document.content.trim().length > 10) {
+        console.log("🏥 Triggering initial medical analysis for new document")
+        setTimeout(() => {
+          onMedicalAnalysis(document.content, true)
+        }, 1500) // 1.5 second delay to avoid conflicts with grammar check
       }
     } else {
       console.log("📝 No document selected, clearing editor")
