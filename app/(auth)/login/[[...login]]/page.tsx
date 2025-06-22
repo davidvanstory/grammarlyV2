@@ -58,124 +58,61 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Middle Section - Key Story and Value Props */}
-        <div className="flex flex-1 items-center">
-          <div className="grid max-w-4xl grid-cols-1 gap-12 lg:grid-cols-2">
-            {/* Left Column - Key Story */}
-            <div className="space-y-6">
-              <div className="rounded-2xl bg-white/10 p-8 backdrop-blur-sm">
-                <p className="font-montserrat text-lg leading-relaxed text-white/95 lg:text-xl">
-                  For patients messaging their doctor,{" "}
-                  <span className="font-semibold text-emerald-300">HeyDoc</span>{" "}
-                  is the writing tool that enables better conversations using
-                  AI.
-                </p>
-              </div>
-            </div>
-
-            {/* Right Column - Value Propositions */}
-            <div className="space-y-4">
-              <div className="rounded-xl bg-emerald-500/20 p-6 backdrop-blur-sm">
-                <div className="flex items-center space-x-3">
-                  <div className="size-2 rounded-full bg-emerald-400" />
-                  <p className="font-montserrat text-lg font-medium text-white">
-                    Make sure your doctor sees what matters
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-blue-500/20 p-6 backdrop-blur-sm">
-                <div className="flex items-center space-x-3">
-                  <div className="size-2 rounded-full bg-blue-400" />
-                  <p className="font-montserrat text-lg font-medium text-white">
-                    Feel heard, even in writing
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-teal-500/20 p-6 backdrop-blur-sm">
-                <div className="flex items-center space-x-3">
-                  <div className="size-2 rounded-full bg-teal-400" />
-                  <p className="font-montserrat text-lg font-medium text-white">
-                    Save time and reduce stress
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-cyan-500/20 p-6 backdrop-blur-sm">
-                <div className="flex items-center space-x-3">
-                  <div className="size-2 rounded-full bg-cyan-400" />
-                  <p className="font-montserrat text-lg font-medium text-white">
-                    Know you've given all the information needed
-                  </p>
-                </div>
-              </div>
+        {/* Middle Section - Key Story */}
+        <div className="flex flex-1 items-start pt-16">
+          <div className="max-w-2xl">
+            <div className="rounded-2xl bg-white/10 p-7 backdrop-blur-[6px]">
+              <p className="font-montserrat text-lg leading-relaxed text-white/95 lg:text-xl">
+                For patients messaging their doctor,
+              </p>
+              <p className="font-montserrat text-lg leading-relaxed text-white/95 lg:text-xl">
+                <span className="font-semibold text-emerald-300">HeyDoc</span>{" "}
+                is the writing tool
+              </p>
+              <p className="font-montserrat text-lg leading-relaxed text-white/95 lg:text-xl">
+                that enables better conversations using AI.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Bottom Section - Compact Login Form */}
-        <div className="flex justify-end">
-          <div className="w-full max-w-sm">
-            <div className="rounded-2xl border border-white/20 bg-white/95 p-6 shadow-2xl backdrop-blur-sm">
-              {/* Login Header */}
-              <div className="mb-6 text-center">
-                <h3 className="font-instrument-serif text-xl font-semibold text-slate-800">
-                  Welcome back
-                </h3>
-                <p className="font-montserrat text-sm text-slate-600">
-                  Sign in to continue
-                </p>
-              </div>
-
-              {/* Clerk SignIn Component */}
-              <SignIn
-                forceRedirectUrl="/documents"
-                appearance={{
-                  baseTheme: theme === "dark" ? dark : undefined,
-                  elements: {
-                    formButtonPrimary:
-                      "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-montserrat font-medium transition-all duration-200 shadow-lg",
-                    card: "bg-transparent shadow-none border-0 p-0",
-                    headerTitle: "hidden",
-                    headerSubtitle: "hidden",
-                    socialButtonsBlockButton:
-                      "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors font-montserrat",
-                    formFieldInput:
-                      "border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20 font-montserrat",
-                    footerActionLink:
-                      "text-emerald-600 hover:text-emerald-700 font-montserrat font-medium",
-                    formFieldLabel: "font-montserrat text-slate-700",
-                    dividerLine: "bg-slate-200",
-                    dividerText: "text-slate-500 font-montserrat"
-                  }
-                }}
-              />
-
-              {/* Sign Up CTA */}
-              <div className="mt-6 border-t border-slate-200 pt-4 text-center">
-                <p className="font-montserrat text-sm text-slate-600">
-                  New to HeyDoc?
-                </p>
-                <Link href="/signup" className="mt-2 block">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="font-montserrat border-emerald-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
-                  >
-                    Create Account
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
+        {/* Clerk SignIn Component - Top Right */}
+        <div className="absolute right-8 top-8 z-20">
+          <SignIn
+            forceRedirectUrl="/documents"
+            appearance={{
+              baseTheme: theme === "dark" ? dark : undefined,
+              elements: {
+                formButtonPrimary:
+                  "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-montserrat font-medium transition-all duration-200 shadow-lg text-sm py-2 px-4",
+                card: "bg-white shadow-xl border border-white/20 rounded-xl p-4 max-w-xs",
+                headerTitle:
+                  "text-lg font-semibold text-slate-800 font-montserrat mb-2",
+                headerSubtitle: "text-sm text-slate-600 font-montserrat mb-4",
+                socialButtonsBlockButton:
+                  "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors font-montserrat text-sm py-2 px-3",
+                formFieldInput:
+                  "border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20 font-montserrat text-sm py-2 px-3",
+                footerActionLink:
+                  "text-emerald-600 hover:text-emerald-700 font-montserrat font-medium text-sm",
+                formFieldLabel: "font-montserrat text-slate-700 text-sm mb-1",
+                dividerLine: "bg-slate-200 my-3",
+                dividerText: "text-slate-500 font-montserrat text-sm",
+                formFieldRow: "mb-3",
+                socialButtonsBlockButtonText: "text-sm",
+                formButtonReset: "text-sm"
+              }
+            }}
+          />
         </div>
 
-        {/* Professional Footer */}
-        <div className="absolute bottom-4 left-8 text-center">
-          <p className="font-montserrat text-xs text-white/60">
-            Professional healthcare communication assistance
-          </p>
+        {/* Unified Value Proposition */}
+        <div className="absolute left-1/2 top-[75%] -translate-x-1/2 -translate-y-1/2">
+          <div className="rounded-lg bg-emerald-500/20 px-4 py-2 backdrop-blur-sm">
+            <p className="font-montserrat text-sm font-medium text-white">
+              feel heard, save time, and know nothing important is missed
+            </p>
+          </div>
         </div>
       </div>
     </div>
