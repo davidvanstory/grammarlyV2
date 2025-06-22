@@ -24,6 +24,12 @@ const config = {
       }
     },
     extend: {
+      fontFamily: {
+        montserrat: ["var(--font-montserrat)", "sans-serif"],
+        "instrument-serif": ["var(--font-instrument-serif)", "serif"],
+        sans: ["var(--font-montserrat)", "system-ui", "sans-serif"],
+        serif: ["var(--font-instrument-serif)", "Georgia", "serif"]
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

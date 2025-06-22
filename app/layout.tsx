@@ -17,12 +17,20 @@ import { cn } from "@/lib/utils"
 import { ClerkProvider } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"
-import { Montserrat } from "next/font/google"
+import { Montserrat, Instrument_Serif } from "next/font/google"
 import "./globals.css"
 
 const montserrat = Montserrat({
   subsets: ["latin"],
-  display: "swap"
+  display: "swap",
+  variable: "--font-montserrat"
+})
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400"],
+  variable: "--font-instrument-serif"
 })
 
 export const metadata: Metadata = {
@@ -36,51 +44,44 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  let userId: string | null = null
+  console.log("🔧 Root layout loading")
 
-  try {
-    const authResult = await auth()
-    userId = authResult.userId
-  } catch (error) {
-    console.error("Auth error in root layout:", error)
-    // Continue without auth - let individual pages handle auth as needed
-  }
+  const { userId } = await auth()
+  console.log("🔐 User ID from auth:", userId)
 
+  // Create or get user profile for authenticated users
   if (userId) {
-    try {
-      const profileRes = await getProfileByUserIdAction(userId)
-      if (!profileRes.isSuccess) {
-        await createProfileAction({ userId })
-      }
-    } catch (error) {
-      console.error("Profile creation error:", error)
-      // Continue even if profile creation fails
+    console.log("🔍 Fetching user profile for user:", userId)
+    const profileResult = await getProfileByUserIdAction(userId)
+
+    if (!profileResult.isSuccess || !profileResult.data) {
+      console.log("📝 Creating new profile for user:", userId)
+      await createProfileAction({
+        userId
+      })
+    } else {
+      console.log("✅ Profile found for user:", profileResult.data.userId)
     }
   }
 
   return (
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
+        <head>
+          <PostHogPageview />
+        </head>
         <body
           className={cn(
-            "bg-background mx-auto min-h-screen w-full scroll-smooth antialiased",
-            montserrat.className
+            montserrat.variable,
+            instrumentSerif.variable,
+            "bg-background min-h-screen font-sans antialiased"
           )}
         >
-          <Providers
-            attribute="class"
-            defaultTheme="light"
-            enableSystem={false}
-            disableTransitionOnChange
-          >
-            <PostHogUserIdentify />
-            <PostHogPageview />
-
+          <Providers>
             {children}
-
-            <TailwindIndicator />
-
             <Toaster />
+            <TailwindIndicator />
+            <PostHogUserIdentify />
           </Providers>
         </body>
       </html>
