@@ -12,14 +12,14 @@ import { MedicalInformation, MedicalField } from "@/types/medical-types"
 import { analyzeMedicalInformationAction } from "@/actions/ai/medical-actions"
 import DocumentListSidebar from "./document-list-sidebar"
 import ContentEditableEditor from "./content-editable-editor"
-import GrammarSuggestionsSidebar from "./grammar-suggestions-sidebar"
-import MedicalInfoSidebar from "./medical-info-sidebar"
+import UnifiedSuggestionsSidebar from "./unified-suggestions-sidebar"
 
 /*
 <ai_context>
 Main layout component for the Med Writer document editor.
-Implements resizable panels with document list (left), editor (center), grammar suggestions (right-top), and medical info tracking (right-bottom).
-Keeps medical information tracking modular and separate from grammar checking.
+Implements resizable panels with document list (left), editor (center), and unified suggestions sidebar (right).
+The right sidebar features tabs for switching between medical information tracking and grammar suggestions.
+Defaults to medical information tab and resets on document changes.
 </ai_context>
 */
 
@@ -248,7 +248,7 @@ export default function ThreePanelLayout({
           className="bg-slate-200 transition-colors hover:bg-slate-300"
         />
 
-        {/* Right Panel - Split into Grammar and Medical Info */}
+        {/* Right Panel - Unified Suggestions Sidebar */}
         <ResizablePanel
           defaultSize={35}
           minSize={25}
@@ -258,32 +258,16 @@ export default function ThreePanelLayout({
           onExpand={() => setRightPanelCollapsed(false)}
           className={rightPanelCollapsed ? "min-w-0" : "min-w-80"}
         >
-          <ResizablePanelGroup direction="vertical" className="h-full">
-            {/* Top Right - Grammar Suggestions */}
-            <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
-              <GrammarSuggestionsSidebar
-                document={selectedDocument}
-                errors={grammarErrors}
-                isGrammarChecking={isGrammarChecking}
-                onErrorClick={handleGrammarErrorClick}
-              />
-            </ResizablePanel>
-
-            <ResizableHandle
-              withHandle
-              className="bg-slate-200 transition-colors hover:bg-slate-300"
-            />
-
-            {/* Bottom Right - Medical Information Tracking */}
-            <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
-              <MedicalInfoSidebar
-                analysis={medicalAnalysis}
-                isAnalyzing={isMedicalAnalyzing}
-                onFieldClick={handleMedicalFieldClick}
-                onRefresh={handleMedicalAnalysisRefresh}
-              />
-            </ResizablePanel>
-          </ResizablePanelGroup>
+          <UnifiedSuggestionsSidebar
+            document={selectedDocument}
+            grammarErrors={grammarErrors}
+            isGrammarChecking={isGrammarChecking}
+            onGrammarErrorClick={handleGrammarErrorClick}
+            medicalAnalysis={medicalAnalysis}
+            isMedicalAnalyzing={isMedicalAnalyzing}
+            onMedicalFieldClick={handleMedicalFieldClick}
+            onMedicalRefresh={handleMedicalAnalysisRefresh}
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
