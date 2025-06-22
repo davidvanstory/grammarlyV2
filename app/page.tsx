@@ -30,9 +30,9 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg">
         <div className="text-center">
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">Med Writer</h1>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900">HeyDoc</h1>
           <p className="mb-8 text-gray-600">
-            AI-Powered Writing Assistant for Medical Students
+            Be confident your doctor's getting the full picture
           </p>
         </div>
         <div className="text-center text-gray-500">🔄 Loading...</div>
