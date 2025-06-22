@@ -106,16 +106,12 @@ export default function ContentEditableEditor({
     null
   )
 
-  // Medical Summary state - "Summarize for Dr." feature
-  const [medicalSummary, setMedicalSummary] = useState<string | null>(
-    document?.medicalSummary || null
-  )
+  // Medical Summary state - "Summarize for Dr." feature (simplified)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [lastSummaryGenerated, setLastSummaryGenerated] = useState<Date | null>(
     null
   )
-  const [hasCopiedSummary, setHasCopiedSummary] = useState(false)
 
   // Refs
   const editorRef = useRef<HTMLDivElement>(null)
@@ -393,13 +389,8 @@ export default function ContentEditableEditor({
   useEffect(() => {
     if (document) {
       console.log("📝 Updating editor content for document:", document.title)
-      console.log(
-        "🏥 Medical summary:",
-        document.medicalSummary ? "present" : "not present"
-      )
       setContent(document.content)
       setTitle(document.title)
-      setMedicalSummary(document.medicalSummary || null)
       setHasUnsavedChanges(false)
       setSaveError(null)
       setLastSaved(new Date(document.updatedAt))
@@ -414,7 +405,6 @@ export default function ContentEditableEditor({
       setIsGeneratingSummary(false)
       setSummaryError(null)
       setLastSummaryGenerated(null)
-      setHasCopiedSummary(false)
 
       // NEW: Trigger grammar check for newly loaded document
       if (document.content.trim().length > 10) {
@@ -482,41 +472,26 @@ export default function ContentEditableEditor({
 
   // Save function
   const saveDocument = useCallback(
-    async (
-      contentToSave?: string,
-      titleToSave?: string,
-      summaryToSave?: string
-    ) => {
+    async (contentToSave?: string, titleToSave?: string) => {
       if (!document) return
 
       const finalContent = contentToSave ?? content
       const finalTitle = titleToSave ?? title
-      const finalSummary = summaryToSave ?? medicalSummary
 
       // Don't save if nothing has changed
-      if (
-        finalContent === document.content &&
-        finalTitle === document.title &&
-        finalSummary === document.medicalSummary
-      ) {
+      if (finalContent === document.content && finalTitle === document.title) {
         console.log("📝 No changes to save")
         return
       }
 
       console.log("📝 Saving document:", document.title, "->", finalTitle)
-      console.log("🏥 Saving medical summary:", finalSummary ? "yes" : "no")
       setIsSaving(true)
       setSaveError(null)
 
       try {
-        const updateData: any = {
+        const updateData = {
           content: finalContent,
           title: finalTitle
-        }
-
-        // Include medical summary if provided
-        if (finalSummary !== undefined) {
-          updateData.medicalSummary = finalSummary
         }
 
         const result = await updateDocumentAction(document.id, updateData)
@@ -540,7 +515,7 @@ export default function ContentEditableEditor({
         setIsSaving(false)
       }
     },
-    [document, content, title, medicalSummary, onDocumentUpdate]
+    [document, content, title, onDocumentUpdate]
   )
 
   // Medical Summary - Generate summary for doctor communication
@@ -564,7 +539,6 @@ export default function ContentEditableEditor({
 
     setIsGeneratingSummary(true)
     setSummaryError(null)
-    setHasCopiedSummary(false)
 
     try {
       const request: MedicalSummaryRequest = {
@@ -593,23 +567,69 @@ export default function ContentEditableEditor({
 
       if (result.success && result.data) {
         const summaryResponse = result.data as MedicalSummaryResponse
-        const formattedSummary = `Medical Summary: ${summaryResponse.summary}`
 
         console.log("✅ Medical summary generated successfully")
-        console.log("📝 Summary:", formattedSummary)
+        console.log("📝 Summary:", summaryResponse.summary)
 
-        setMedicalSummary(formattedSummary)
+        // Insert summary at the TOP of the content with light green background
+        const newContent = `Medical Summary: ${summaryResponse.summary}\n\n${content}`
+        setContent(newContent)
+        setHasUnsavedChanges(true)
         setLastSummaryGenerated(new Date())
         setSummaryError(null)
 
-        // Save the summary to the document
+        // Update the editor DOM directly with styled summary
+        if (editorRef.current) {
+          console.log("📝 Updating editor DOM with styled summary at top")
+
+          // Clear current content
+          editorRef.current.innerHTML = ""
+
+          // Create styled summary container
+          const summaryDiv = window.document.createElement("div")
+          summaryDiv.style.backgroundColor = "#dcfce7" // light green background (green-100)
+          summaryDiv.style.padding = "8px 12px"
+          summaryDiv.style.borderRadius = "6px"
+          summaryDiv.style.display = "block"
+          summaryDiv.style.marginBottom = "16px"
+
+          // Create bold green "Medical Summary:" label
+          const labelSpan = window.document.createElement("span")
+          labelSpan.style.fontWeight = "bold"
+          labelSpan.style.color = "#15803d" // vibrant green text (green-600)
+          labelSpan.textContent = "Medical Summary: "
+
+          // Create normal text for the summary content
+          const contentSpan = window.document.createElement("span")
+          contentSpan.style.color = "#374151" // gray-700 for readability
+          contentSpan.textContent = summaryResponse.summary
+
+          // Combine the elements
+          summaryDiv.appendChild(labelSpan)
+          summaryDiv.appendChild(contentSpan)
+
+          // Add summary to editor
+          editorRef.current.appendChild(summaryDiv)
+
+          // Add line breaks
+          editorRef.current.appendChild(window.document.createElement("br"))
+          editorRef.current.appendChild(window.document.createElement("br"))
+
+          // Add original content
+          if (content.trim()) {
+            const contentNode = window.document.createTextNode(content)
+            editorRef.current.appendChild(contentNode)
+          }
+        }
+
+        // Save the updated content to the document
         if (document) {
-          console.log("💾 Saving medical summary to document...")
-          await saveDocument(content, title, formattedSummary)
+          console.log("💾 Saving content with medical summary to document...")
+          await saveDocument(newContent, title)
         }
 
         toast.success(
-          `Medical summary generated! (${summaryResponse.wordCount} words)`
+          `Medical summary generated and added to top! (${summaryResponse.wordCount} words)`
         )
       }
     } catch (error) {
@@ -623,34 +643,27 @@ export default function ContentEditableEditor({
     }
   }, [content, medicalAnalysis, document, title, saveDocument])
 
-  // Copy summary and original text together
-  const copySummaryAndText = useCallback(async () => {
-    console.log("📋 Copying summary and original text...")
+  // Copy content to clipboard
+  const copyContentToClipboard = useCallback(async () => {
+    console.log("📋 Copying content to clipboard...")
 
-    if (!medicalSummary) {
-      toast.error("No summary available to copy")
+    if (!content.trim()) {
+      toast.error("No content available to copy")
       return
     }
 
     try {
-      const combinedText = `${medicalSummary}\n\n${content}`
-      await navigator.clipboard.writeText(combinedText)
+      await navigator.clipboard.writeText(content)
 
-      console.log("✅ Summary and text copied to clipboard")
-      console.log("📊 Total copied length:", combinedText.length)
+      console.log("✅ Content copied to clipboard")
+      console.log("📊 Total copied length:", content.length)
 
-      setHasCopiedSummary(true)
-      toast.success("Summary and message copied to clipboard!")
-
-      // Reset copied state after 3 seconds
-      setTimeout(() => {
-        setHasCopiedSummary(false)
-      }, 3000)
+      toast.success("Content copied to clipboard!")
     } catch (error) {
       console.error("❌ Failed to copy to clipboard:", error)
       toast.error("Failed to copy to clipboard")
     }
-  }, [medicalSummary, content])
+  }, [content])
 
   // Set up auto-save interval
   useEffect(() => {
@@ -808,14 +821,14 @@ export default function ContentEditableEditor({
               </Button>
 
               <Button
-                onClick={copySummaryAndText}
-                disabled={!medicalSummary || hasCopiedSummary}
+                onClick={copyContentToClipboard}
+                disabled={!content.trim()}
                 size="sm"
                 variant="outline"
                 className="h-8 px-3 text-xs"
               >
                 <Copy className="mr-1 size-3" />
-                {hasCopiedSummary ? "Copied!" : "Copy"}
+                Copy
               </Button>
             </div>
 
@@ -888,6 +901,22 @@ export default function ContentEditableEditor({
             )}
           </div>
 
+          {/* Medical Summary Generation Status */}
+          {isGeneratingSummary && (
+            <div className="flex items-center gap-1">
+              <Clock className="size-4 animate-spin text-emerald-500" />
+              <span className="text-emerald-600">Generating summary...</span>
+            </div>
+          )}
+
+          {/* Summary Error Status */}
+          {summaryError && (
+            <div className="flex items-center gap-1">
+              <AlertCircle className="size-4 text-red-500" />
+              <span className="text-red-500">Summary failed</span>
+            </div>
+          )}
+
           {/* Last Saved */}
           {lastSaved && <span>Last saved {formatLastSaved(lastSaved)}</span>}
 
@@ -903,61 +932,6 @@ export default function ContentEditableEditor({
           </span>
         </div>
       </div>
-
-      {/* Medical Summary Display */}
-      {medicalSummary && (
-        <div className="shrink-0 border-b border-slate-200 bg-emerald-50 p-4">
-          <div className="mx-auto max-w-4xl">
-            <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white p-4 shadow-sm">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-                <FileText className="size-4 text-emerald-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-emerald-800">
-                    Generated for Your Doctor
-                  </h3>
-                  {lastSummaryGenerated && (
-                    <span className="text-xs text-emerald-600">
-                      Generated {lastSummaryGenerated.toLocaleTimeString()}
-                    </span>
-                  )}
-                </div>
-                <p className="break-words text-sm leading-relaxed text-slate-700">
-                  {medicalSummary}
-                </p>
-                {summaryError && (
-                  <div className="mt-2 rounded bg-red-50 p-2 text-xs text-red-600">
-                    {summaryError}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Summary Generation Status */}
-      {isGeneratingSummary && (
-        <div className="shrink-0 border-b border-slate-200 bg-blue-50 p-4">
-          <div className="mx-auto max-w-4xl">
-            <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-white p-4 shadow-sm">
-              <div className="flex size-8 shrink-0 items-center justify-center">
-                <Clock className="size-4 animate-spin text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-blue-800">
-                  Generating Medical Summary...
-                </h3>
-                <p className="mt-1 text-xs text-blue-600">
-                  Analyzing your message and creating a professional summary for
-                  your doctor
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Editor */}
       <div className="relative flex-1 overflow-auto p-6">
