@@ -2,6 +2,7 @@
 <ai_context>
 Medical information tracking types for the Med Writer application.
 Defines types for tracking completeness of patient medical information in communications to doctors.
+SIMPLIFIED VERSION - removed confidence scores, importance levels, and complex validation for better performance.
 </ai_context>
 */
 
@@ -16,27 +17,22 @@ export type MedicalFieldType =
   | "onset"
   | "intensity"
 
-// Status of each medical information field
-export type MedicalFieldStatus = "missing" | "provided" | "partial"
-
-// Individual medical field tracking
+// Simplified individual medical field tracking - just present or not
 export interface MedicalField {
   type: MedicalFieldType
-  status: MedicalFieldStatus
+  isPresent: boolean // Simplified: just true/false instead of missing/provided/partial
   description: string
-  importance: "critical" | "important" | "helpful"
   suggestion: string
-  detectedContent?: string // What was found in the text
-  confidence?: number // AI confidence in detection (0-1)
+  detectedContent?: string // What was found in the text if present
 }
 
-// Complete medical information analysis
+// Simplified medical information analysis
 export interface MedicalInformation {
   id: string
-  overallCompleteness: number // 0-100 percentage
+  overallCompleteness: number // 0-100 percentage based on fields present
   fieldsAnalyzed: MedicalField[]
   recommendedNextSteps: string[]
-  criticalMissing: MedicalFieldType[]
+  missingFields: MedicalFieldType[] // Simplified: just missing field types
   lastAnalyzed: Date
   textLength: number
 }
@@ -48,13 +44,11 @@ export interface MedicalCheckRequest {
   forceRecheck?: boolean
 }
 
-// Medical information check response
+// Simplified medical information check response
 export interface MedicalCheckResponse {
   analysis: MedicalInformation
   processedText: string
   processingTime: number
-  confidence: number
-  suggestions: string[]
 }
 
 // Medical information tracking state
@@ -66,14 +60,14 @@ export interface MedicalTrackingState {
   hasUnsavedChanges: boolean
 }
 
-// Medical field configuration for UI display
+// Medical field configuration for UI display (kept for UI consistency)
 export interface MedicalFieldConfig {
   type: MedicalFieldType
   label: string
   icon: string
   description: string
   example: string
-  promptSuggestion: string
+  suggestion: string // Static suggestion instead of dynamic generation
   color: string
   priority: number
 }
@@ -86,23 +80,15 @@ export interface MedicalInfoSidebarProps {
   onRefresh?: () => void
 }
 
-// Performance metrics for medical analysis
-export interface MedicalAnalysisMetrics {
-  analysisTime: number
-  textProcessingTime: number
-  fieldDetectionTime: number
-  totalOperationTime: number
-  fieldsAnalyzed: number
+// Cache entry for medical analysis (for new caching system)
+export interface MedicalCacheEntry {
+  textHash: string
+  originalText: string
+  result: MedicalCheckResponse
+  timestamp: Date
+  lastAccessed: Date
+  hitCount: number
   textLength: number
-}
-
-// Medical field validation result
-export interface MedicalFieldValidation {
-  isValid: boolean
-  field: MedicalFieldType
-  confidence: number
-  detectedContent: string
-  reasoning: string
 }
 
 // Export all types for easy importing

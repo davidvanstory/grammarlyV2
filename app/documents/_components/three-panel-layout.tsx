@@ -188,7 +188,11 @@ export default function ThreePanelLayout({
 
   // Handle medical field clicks
   const handleMedicalFieldClick = (field: MedicalField) => {
-    console.log("🖱️ Medical field clicked:", field.type, field.status)
+    console.log(
+      "🖱️ Medical field clicked:",
+      field.type,
+      field.isPresent ? "present" : "missing"
+    )
     // TODO: Could scroll to editor and focus on relevant field or show tooltip
   }
 

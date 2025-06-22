@@ -28,7 +28,7 @@ import { MEDICAL_FIELD_CONFIGS } from "@/lib/medical-prompts"
 <ai_context>
 Medical information sidebar component for the Med Writer application.
 Displays completeness tracking for patient medical information when writing to doctors.
-Shows which medical fields are missing, provided, or partial.
+SIMPLIFIED VERSION - Updated to work with new simplified medical field structure (isPresent boolean instead of status).
 </ai_context>
 */
 
@@ -49,60 +49,26 @@ export default function MedicalInfoSidebar({
   )
   console.log("🔄 Is analyzing:", isAnalyzing)
 
-  // Helper function to get field status color
-  const getFieldStatusColor = (status: string): string => {
-    switch (status) {
-      case "provided":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "partial":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "missing":
-        return "bg-red-100 text-red-800 border-red-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
-    }
+  // Helper function to get field status color based on isPresent
+  const getFieldStatusColor = (isPresent: boolean): string => {
+    return isPresent
+      ? "bg-green-100 text-green-800 border-green-200"
+      : "bg-red-100 text-red-800 border-red-200"
   }
 
   // Helper function to get field status icon
-  const getFieldStatusIcon = (status: string): string => {
-    switch (status) {
-      case "provided":
-        return "✅"
-      case "partial":
-        return "⚠️"
-      case "missing":
-        return "❌"
-      default:
-        return "❓"
-    }
+  const getFieldStatusIcon = (isPresent: boolean): string => {
+    return isPresent ? "✅" : "❌"
   }
 
-  // Helper function to get importance color
-  const getImportanceColor = (importance: string): string => {
-    switch (importance) {
-      case "critical":
-        return "text-red-600"
-      case "important":
-        return "text-orange-600"
-      case "helpful":
-        return "text-blue-600"
-      default:
-        return "text-gray-600"
-    }
+  // Helper function to get field status text
+  const getFieldStatusText = (isPresent: boolean): string => {
+    return isPresent ? "provided" : "missing"
   }
 
   // Group fields by status for overview
-  const fieldsByStatus =
-    analysis?.fieldsAnalyzed.reduce(
-      (acc, field) => {
-        if (!acc[field.status]) {
-          acc[field.status] = []
-        }
-        acc[field.status].push(field)
-        return acc
-      },
-      {} as Record<string, MedicalField[]>
-    ) || {}
+  const presentFields = analysis?.fieldsAnalyzed.filter(f => f.isPresent) || []
+  const missingFields = analysis?.fieldsAnalyzed.filter(f => !f.isPresent) || []
 
   // Get completeness color based on percentage
   const getCompletenessColor = (percentage: number): string => {
@@ -200,24 +166,21 @@ export default function MedicalInfoSidebar({
                   />
 
                   <p className="text-xs text-slate-500">
-                    {
-                      analysis.fieldsAnalyzed.filter(
-                        f => f.status === "provided"
-                      ).length
-                    }{" "}
-                    of {analysis.fieldsAnalyzed.length} fields provided
+                    {presentFields.length} of {analysis.fieldsAnalyzed.length}{" "}
+                    fields provided
                   </p>
 
-                  {/* Critical Missing Alert */}
-                  {analysis.criticalMissing.length > 0 && (
+                  {/* Missing Fields Alert */}
+                  {missingFields.length > 0 && (
                     <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2">
                       <div className="flex items-center gap-1 text-xs font-medium text-red-800">
                         <AlertTriangle className="size-3" />
-                        Critical Information Missing
+                        Information Missing
                       </div>
                       <p className="mt-1 text-xs text-red-700">
-                        {analysis.criticalMissing.length} critical field
-                        {analysis.criticalMissing.length > 1 ? "s" : ""} missing
+                        {missingFields.length} field
+                        {missingFields.length > 1 ? "s" : ""} missing for
+                        complete medical information
                       </p>
                     </div>
                   )}
@@ -234,15 +197,22 @@ export default function MedicalInfoSidebar({
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(fieldsByStatus).map(([status, fields]) => (
+                    {presentFields.length > 0 && (
                       <Badge
-                        key={status}
-                        className={getFieldStatusColor(status)}
+                        className="border-green-200 bg-green-100 text-green-800"
                         variant="outline"
                       >
-                        {getFieldStatusIcon(status)} {fields.length} {status}
+                        ✅ {presentFields.length} provided
                       </Badge>
-                    ))}
+                    )}
+                    {missingFields.length > 0 && (
+                      <Badge
+                        className="border-red-200 bg-red-100 text-red-800"
+                        variant="outline"
+                      >
+                        ❌ {missingFields.length} missing
+                      </Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -259,35 +229,21 @@ export default function MedicalInfoSidebar({
                   <div className="space-y-3">
                     {analysis.fieldsAnalyzed
                       .sort((a, b) => {
-                        // Sort by importance, then by status (missing first)
-                        const importanceOrder = {
-                          critical: 0,
-                          important: 1,
-                          helpful: 2
-                        }
-                        const statusOrder = {
-                          missing: 0,
-                          partial: 1,
-                          provided: 2
-                        }
+                        // Sort by status (missing first), then by field priority
+                        const config_a = MEDICAL_FIELD_CONFIGS[a.type]
+                        const config_b = MEDICAL_FIELD_CONFIGS[b.type]
 
-                        if (
-                          importanceOrder[a.importance] !==
-                          importanceOrder[b.importance]
-                        ) {
-                          return (
-                            importanceOrder[a.importance] -
-                            importanceOrder[b.importance]
-                          )
+                        if (a.isPresent !== b.isPresent) {
+                          return a.isPresent ? 1 : -1 // missing fields first
                         }
-                        return statusOrder[a.status] - statusOrder[b.status]
+                        return config_a.priority - config_b.priority
                       })
                       .map(field => {
                         const config = MEDICAL_FIELD_CONFIGS[field.type]
                         return (
                           <div
                             key={field.type}
-                            className={`cursor-pointer rounded-lg border p-3 transition-all hover:shadow-sm ${getFieldStatusColor(field.status)}`}
+                            className={`cursor-pointer rounded-lg border p-3 transition-all hover:shadow-sm ${getFieldStatusColor(field.isPresent)}`}
                             onClick={() => onFieldClick?.(field)}
                           >
                             <div className="mb-2 flex items-start justify-between">
@@ -305,21 +261,16 @@ export default function MedicalInfoSidebar({
                               <div className="flex flex-col items-end gap-1">
                                 <Badge
                                   variant="outline"
-                                  className={`text-xs ${getFieldStatusColor(field.status)}`}
+                                  className={`text-xs ${getFieldStatusColor(field.isPresent)}`}
                                 >
-                                  {getFieldStatusIcon(field.status)}{" "}
-                                  {field.status}
+                                  {getFieldStatusIcon(field.isPresent)}{" "}
+                                  {getFieldStatusText(field.isPresent)}
                                 </Badge>
-                                <span
-                                  className={`text-xs font-medium ${getImportanceColor(field.importance)}`}
-                                >
-                                  {field.importance}
-                                </span>
                               </div>
                             </div>
 
                             {/* Detected Content */}
-                            {field.detectedContent && (
+                            {field.detectedContent && field.isPresent && (
                               <div className="mb-2 rounded bg-white/50 p-2">
                                 <p className="text-xs font-medium opacity-80">
                                   Found:
@@ -330,8 +281,8 @@ export default function MedicalInfoSidebar({
                               </div>
                             )}
 
-                            {/* Suggestion */}
-                            {field.status !== "provided" && (
+                            {/* Suggestion for missing fields */}
+                            {!field.isPresent && (
                               <div className="rounded bg-white/30 p-2">
                                 <p className="text-xs font-medium opacity-80">
                                   Suggestion:
@@ -342,22 +293,6 @@ export default function MedicalInfoSidebar({
                                     Example: {config.example}
                                   </p>
                                 )}
-                              </div>
-                            )}
-
-                            {/* Confidence Score */}
-                            {field.confidence && (
-                              <div className="mt-2 flex items-center gap-2">
-                                <span className="text-xs opacity-60">
-                                  Confidence:
-                                </span>
-                                <Progress
-                                  value={field.confidence * 100}
-                                  className="h-1 flex-1"
-                                />
-                                <span className="text-xs opacity-60">
-                                  {Math.round(field.confidence * 100)}%
-                                </span>
                               </div>
                             )}
                           </div>
@@ -405,6 +340,10 @@ export default function MedicalInfoSidebar({
                   <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
                     <span>Text length:</span>
                     <span>{analysis.textLength} characters</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
+                    <span>Missing fields:</span>
+                    <span>{analysis.missingFields.length}</span>
                   </div>
                 </div>
               )}
