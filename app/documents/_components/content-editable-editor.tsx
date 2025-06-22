@@ -79,6 +79,11 @@ export default function ContentEditableEditor({
   const [title, setTitle] = useState(document?.title || "")
   const [isEditingTitle, setIsEditingTitle] = useState(false)
 
+  // Placeholder state - Show placeholder when content is empty
+  const [showPlaceholder, setShowPlaceholder] = useState(
+    !document?.content?.trim()
+  )
+
   // Save state
   const [isSaving, setIsSaving] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -291,6 +296,11 @@ export default function ContentEditableEditor({
       setContent(newText)
       setHasUnsavedChanges(true)
 
+      // Update placeholder visibility based on content
+      const hasContent = newText.trim().length > 0
+      setShowPlaceholder(!hasContent)
+      console.log("🎯 Placeholder visibility:", !hasContent ? "show" : "hide")
+
       // Update editor state
       updateEditorState(newText)
 
@@ -395,6 +405,14 @@ export default function ContentEditableEditor({
       setSaveError(null)
       setLastSaved(new Date(document.updatedAt))
 
+      // Update placeholder visibility based on document content
+      const hasContent = document.content.trim().length > 0
+      setShowPlaceholder(!hasContent)
+      console.log(
+        "🎯 Document loaded, placeholder visibility:",
+        !hasContent ? "show" : "hide"
+      )
+
       // Reset Phase 4 state for new document
       setErrors([])
       setIsProcessingText(false)
@@ -429,6 +447,10 @@ export default function ContentEditableEditor({
       setHasUnsavedChanges(false)
       setSaveError(null)
       setLastSaved(null)
+
+      // Show placeholder when no document is selected
+      setShowPlaceholder(true)
+      console.log("🎯 No document selected, showing placeholder")
 
       // Clear Phase 4 state
       setErrors([])
@@ -642,6 +664,24 @@ export default function ContentEditableEditor({
       setIsGeneratingSummary(false)
     }
   }, [content, medicalAnalysis, document, title, saveDocument])
+
+  // Handle placeholder click - focus editor and hide placeholder
+  const handlePlaceholderClick = useCallback(() => {
+    console.log("🎯 Placeholder clicked, focusing editor")
+    if (editorRef.current) {
+      editorRef.current.focus()
+      // Position cursor at the beginning
+      const selection = window.getSelection()
+      if (selection) {
+        const range = window.document.createRange()
+        range.setStart(editorRef.current, 0)
+        range.setEnd(editorRef.current, 0)
+        selection.removeAllRanges()
+        selection.addRange(range)
+      }
+    }
+    setShowPlaceholder(false)
+  }, [])
 
   // Copy content to clipboard
   const copyContentToClipboard = useCallback(async () => {
@@ -935,6 +975,34 @@ export default function ContentEditableEditor({
 
       {/* Editor */}
       <div className="relative flex-1 overflow-auto p-6">
+        {/* Placeholder Text - Shows when content is empty */}
+        {showPlaceholder && (
+          <div
+            className="pointer-events-none absolute inset-6 flex cursor-text items-start justify-start"
+            onClick={handlePlaceholderClick}
+            style={{
+              top: "24px", // Align with editor padding
+              left: "24px",
+              right: "24px"
+            }}
+          >
+            <div className="prose prose-slate prose-lg mx-auto w-full max-w-4xl">
+              <div
+                className="pointer-events-auto cursor-text text-slate-400"
+                style={{
+                  lineHeight: "1.8",
+                  fontSize: "16px",
+                  fontFamily: "system-ui, -apple-system, sans-serif"
+                }}
+                onClick={handlePlaceholderClick}
+              >
+                Start your note to your doctor and HeyDoc can help you along the
+                way..
+              </div>
+            </div>
+          </div>
+        )}
+
         <div
           ref={editorRef}
           contentEditable
@@ -1003,6 +1071,10 @@ export default function ContentEditableEditor({
                 setHasUnsavedChanges(true)
               }
             }
+          }}
+          onFocus={() => {
+            console.log("🎯 Editor focused, hiding placeholder")
+            setShowPlaceholder(false)
           }}
         >
           {/* Content will be set via useEffect instead of dangerouslySetInnerHTML */}
