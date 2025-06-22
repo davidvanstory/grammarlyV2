@@ -110,7 +110,8 @@ export default function LoginPage() {
         <div className="absolute left-1/2 top-[75%] -translate-x-1/2 -translate-y-1/2">
           <div className="rounded-lg bg-emerald-500/20 px-4 py-2 backdrop-blur-sm">
             <p className="font-montserrat text-sm font-medium text-white">
-              feel heard, save time, and know nothing important is missed
+              feel heard, save time, and know you doctor's getting the full
+              picture
             </p>
           </div>
         </div>
