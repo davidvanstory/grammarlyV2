@@ -173,7 +173,7 @@ function processSimplifiedMedicalAnalysis(
 ): MedicalInformation {
   console.log("🔄 Processing simplified medical analysis response...")
 
-  const allFieldTypes: MedicalFieldType[] = ["symptoms", "frequency", "duration", "medication", "onset", "intensity"]
+  const allFieldTypes: MedicalFieldType[] = ["symptoms", "duration", "medication", "onset", "intensity"]
   const fieldsAnalyzed: MedicalField[] = []
   
   // Simple validation - if no fields object, create empty analysis
@@ -248,9 +248,7 @@ function generateSimpleRecommendations(missingFields: MedicalFieldType[]): strin
   if (missingFields.includes("medication")) {
     recommendations.push("Mention any medications you're currently taking or that you're not taking any")
   }
-  if (missingFields.includes("frequency")) {
-    recommendations.push("Describe how often you experience these symptoms")
-  }
+
   if (missingFields.includes("intensity")) {
     recommendations.push("Rate the severity or intensity of your symptoms")
   }

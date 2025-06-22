@@ -19,23 +19,21 @@ CRITICAL REQUIREMENTS:
 MEDICAL INFORMATION CATEGORIES TO CHECK:
 
 1. SYMPTOMS: Are specific symptoms mentioned? (not just "feeling bad")
-2. FREQUENCY: Is how often symptoms occur mentioned?
-3. DURATION: Is how long symptoms have been present mentioned?
-4. MEDICATION: Are current medications or treatments mentioned?
-5. ONSET: Is when/how symptoms started mentioned?
-6. INTENSITY: Is symptom severity/intensity mentioned?
+2. DURATION: Is how long symptoms have been present mentioned?
+3. MEDICATION: Are current medications or treatments mentioned?
+4. ONSET: Is when/how symptoms started mentioned?
+5. INTENSITY: Is symptom severity/intensity mentioned?
 
 SIMPLIFIED RESPONSE FORMAT (strict JSON only):
 {
   "fields": {
     "symptoms": true/false,
-    "frequency": true/false,
     "duration": true/false,
     "medication": true/false,
     "onset": true/false,
     "intensity": true/false
   },
-  "overallCompleteness": 67
+  "overallCompleteness": 80
 }
 
 Analyze the following patient text:
@@ -60,16 +58,7 @@ export const MEDICAL_FIELD_CONFIGS: Record<
     color: "bg-red-100 text-red-800",
     priority: 1
   },
-  frequency: {
-    type: "frequency",
-    label: "Frequency",
-    icon: "📅",
-    description: "How often do your symptoms occur?",
-    example: "daily, 3 times a week, occasionally",
-    suggestion: "Mention how often you experience these symptoms",
-    color: "bg-blue-100 text-blue-800",
-    priority: 2
-  },
+
   duration: {
     type: "duration",
     label: "Duration",
@@ -79,7 +68,7 @@ export const MEDICAL_FIELD_CONFIGS: Record<
     suggestion:
       "Include when your symptoms started or how long you've had them",
     color: "bg-green-100 text-green-800",
-    priority: 3
+    priority: 2
   },
   medication: {
     type: "medication",
@@ -90,7 +79,7 @@ export const MEDICAL_FIELD_CONFIGS: Record<
     suggestion:
       "List your current medications or mention if you're not taking any",
     color: "bg-purple-100 text-purple-800",
-    priority: 4
+    priority: 3
   },
   onset: {
     type: "onset",
@@ -100,7 +89,7 @@ export const MEDICAL_FIELD_CONFIGS: Record<
     example: "after exercise, gradually developed, sudden onset",
     suggestion: "Describe what seemed to trigger or start your symptoms",
     color: "bg-orange-100 text-orange-800",
-    priority: 5
+    priority: 4
   },
   intensity: {
     type: "intensity",
@@ -110,7 +99,7 @@ export const MEDICAL_FIELD_CONFIGS: Record<
     example: "mild, severe, 7/10 pain",
     suggestion: "Rate or describe the severity of your symptoms",
     color: "bg-yellow-100 text-yellow-800",
-    priority: 6
+    priority: 5
   }
 }
 
@@ -119,7 +108,6 @@ export const STATIC_MEDICAL_SUGGESTIONS = [
   "Consider adding more specific details about your symptoms",
   "Include when your symptoms started and how long you've had them",
   "Mention any medications you're currently taking or that you're not taking any",
-  "Describe how often you experience these symptoms",
   "Include what may have triggered your symptoms",
   "Rate the severity or intensity of your symptoms"
 ]

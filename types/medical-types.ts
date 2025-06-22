@@ -11,7 +11,6 @@ import { ActionState } from "@/types/server-action-types"
 // Medical information field types that patients should provide when writing to doctors
 export type MedicalFieldType =
   | "symptoms"
-  | "frequency"
   | "duration"
   | "medication"
   | "onset"
