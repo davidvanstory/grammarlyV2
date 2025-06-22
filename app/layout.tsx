@@ -17,14 +17,18 @@ import { cn } from "@/lib/utils"
 import { ClerkProvider } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Montserrat } from "next/font/google"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  display: "swap"
+})
 
 export const metadata: Metadata = {
-  title: "Mckay's App Template",
-  description: "A full-stack web app template."
+  title: "HeyDoc - Making messaging your doctor easy",
+  description:
+    "A professional writing assistant that helps patients communicate with healthcare providers."
 }
 
 export default async function RootLayout({
@@ -60,7 +64,7 @@ export default async function RootLayout({
         <body
           className={cn(
             "bg-background mx-auto min-h-screen w-full scroll-smooth antialiased",
-            inter.className
+            montserrat.className
           )}
         >
           <Providers

@@ -236,11 +236,7 @@ export default function UnifiedSuggestionsSidebar({
                   <div className="py-6 text-center text-slate-500">
                     <Heart className="mx-auto mb-2 size-8 text-slate-300" />
                     <p className="text-sm font-medium text-slate-700">
-                      Start writing your note to your Dr. and HeyDoc will make
-                      sure you include all the right info
-                    </p>
-                    <p className="mt-2 text-xs text-slate-400">
-                      Type your message to analyze medical information
+                      Start writing, suggestions will appear here
                     </p>
                   </div>
                 ) : (

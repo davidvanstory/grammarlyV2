@@ -1,6 +1,7 @@
 /*
 <ai_context>
-This server layout provides a centered layout for (auth) pages.
+This server layout provides the structure for HeyDoc authentication pages.
+Allows full-screen layouts for the new hero design.
 </ai_context>
 */
 
@@ -11,7 +12,7 @@ interface AuthLayoutProps {
 }
 
 export default async function AuthLayout({ children }: AuthLayoutProps) {
-  return (
-    <div className="flex h-screen items-center justify-center">{children}</div>
-  )
+  console.log("🔐 Loading HeyDoc auth layout...")
+
+  return <div className="min-h-screen">{children}</div>
 }
