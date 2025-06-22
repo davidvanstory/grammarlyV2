@@ -15,6 +15,13 @@
       "when": 1750368374602,
       "tag": "0001_mature_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1750562049699,
+      "tag": "0002_overconfident_callisto",
+      "breakpoints": true
     }
   ]
 }

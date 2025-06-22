@@ -11,6 +11,7 @@ export const documentsTable = pgTable("documents", {
   userId: text("user_id").notNull(),
   title: text("title").notNull(),
   content: text("content").notNull().default(""),
+  medicalSummary: text("medical_summary"), // AI-generated medical summary for doctors
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

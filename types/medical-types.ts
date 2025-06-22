@@ -90,5 +90,28 @@ export interface MedicalCacheEntry {
   textLength: number
 }
 
+// Medical summary types for "Summarize for Dr." feature
+export interface MedicalSummaryRequest {
+  text: string
+  medicalAnalysis?: MedicalInformation // Use existing medical analysis if available
+  documentId?: string
+}
+
+export interface MedicalSummaryResponse {
+  summary: string
+  originalText: string
+  medicalAnalysis: MedicalInformation | null
+  processingTime: number
+  wordCount: number
+}
+
+export interface MedicalSummaryState {
+  summary: string | null
+  isGenerating: boolean
+  error: string | null
+  lastGenerated: Date | null
+  hasCopied: boolean
+}
+
 // Export all types for easy importing
 export type MedicalActionState<T> = ActionState<T>

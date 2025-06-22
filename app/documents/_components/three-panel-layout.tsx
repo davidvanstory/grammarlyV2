@@ -240,6 +240,7 @@ export default function ThreePanelLayout({
             onDocumentUpdate={handleDocumentUpdate}
             onGrammarCheck={handleGrammarCheck}
             onMedicalAnalysis={handleMedicalAnalysis}
+            medicalAnalysis={medicalAnalysis}
           />
         </ResizablePanel>
 

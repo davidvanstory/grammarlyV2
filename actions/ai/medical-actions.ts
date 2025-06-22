@@ -9,7 +9,7 @@ OPTIMIZED VERSION - Added caching and simplified processing for 10x speed improv
 */
 
 import { getOpenAIClient, OPENAI_CONFIG, OpenAIError } from "@/lib/openai"
-import { MEDICAL_INFORMATION_PROMPT, MEDICAL_FIELD_CONFIGS, STATIC_MEDICAL_SUGGESTIONS } from "@/lib/medical-prompts"
+import { MEDICAL_INFORMATION_PROMPT, MEDICAL_FIELD_CONFIGS, STATIC_MEDICAL_SUGGESTIONS, MEDICAL_SUMMARY_PROMPT } from "@/lib/medical-prompts"
 import { getMedicalCache } from "@/lib/grammar-cache"
 import {
   MedicalCheckRequest,
@@ -17,7 +17,9 @@ import {
   MedicalInformation,
   MedicalField,
   MedicalFieldType,
-  MedicalActionState
+  MedicalActionState,
+  MedicalSummaryRequest,
+  MedicalSummaryResponse
 } from "@/types/medical-types"
 
 /**
@@ -291,6 +293,130 @@ export async function getMedicalAnalysisStatusAction(): Promise<MedicalActionSta
     return {
       isSuccess: false,
       message: "Failed to get medical analysis status"
+    }
+  }
+}
+
+/**
+ * Generate medical summary for doctor communication - "Summarize for Dr." feature
+ */
+export async function generateMedicalSummaryAction(
+  request: MedicalSummaryRequest
+): Promise<MedicalActionState<MedicalSummaryResponse>> {
+  console.log("🏥 Starting medical summary generation for text:", request.text.length, "characters")
+  console.log("📊 Has existing medical analysis:", !!request.medicalAnalysis)
+
+  const startTime = Date.now()
+
+  try {
+    // Validate input
+    if (!request.text.trim()) {
+      console.log("❌ Empty text provided for medical summary")
+      return {
+        isSuccess: false,
+        message: "No text provided for medical summary generation"
+      }
+    }
+
+    if (request.text.length < 20) {
+      console.log("❌ Text too short for medical summary:", request.text.length)
+      return {
+        isSuccess: false,
+        message: "Text is too short for medical summary (minimum 20 characters)"
+      }
+    }
+
+    if (request.text.length > 5000) {
+      console.log("❌ Text too long for medical summary:", request.text.length)
+      return {
+        isSuccess: false,
+        message: "Text is too long for medical summary (max 5,000 characters)"
+      }
+    }
+
+    console.log("🤖 Calling OpenAI for medical summary generation...")
+    
+    // Get OpenAI client
+    const openai = getOpenAIClient()
+    
+    // Prepare the prompt with the patient's text
+    const summaryPrompt = MEDICAL_SUMMARY_PROMPT + "\n\n" + request.text.trim()
+    
+    console.log("📝 Prompt length:", summaryPrompt.length, "characters")
+    
+    // Make API call for summary generation
+    const response = await openai.chat.completions.create({
+      model: OPENAI_CONFIG.model,
+      messages: [
+        {
+          role: "system",
+          content: "You are a medical communication expert. Create concise, professional summaries for doctors. Return only the summary text without any additional formatting."
+        },
+        {
+          role: "user",
+          content: summaryPrompt
+        }
+      ],
+      temperature: 0.1, // Very low temperature for consistent, professional output
+      max_tokens: 150   // Limit tokens for concise summary
+    })
+
+    console.log("✅ OpenAI medical summary response received")
+    console.log("🤖 Response usage:", response.usage)
+
+    const summaryContent = response.choices[0]?.message?.content
+    if (!summaryContent) {
+      console.error("❌ Empty response from OpenAI medical summary")
+      return {
+        isSuccess: false,
+        message: "No response from medical summary service"
+      }
+    }
+
+    // Clean up the summary - remove any unwanted formatting
+    const cleanedSummary = summaryContent.trim()
+      .replace(/^["']|["']$/g, '') // Remove quotes
+      .replace(/\n/g, ' ') // Replace newlines with spaces
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+
+    console.log("✅ Medical summary generated:", cleanedSummary.length, "characters")
+    console.log("📝 Summary preview:", cleanedSummary.substring(0, 100) + "...")
+
+    const processingTime = Date.now() - startTime
+    const wordCount = cleanedSummary.split(/\s+/).filter(word => word.length > 0).length
+
+    console.log("📊 Summary word count:", wordCount)
+    console.log("⏱️ Processing time:", processingTime, "ms")
+
+    const responseData: MedicalSummaryResponse = {
+      summary: cleanedSummary,
+      originalText: request.text,
+      medicalAnalysis: request.medicalAnalysis || null,
+      processingTime,
+      wordCount
+    }
+
+    return {
+      isSuccess: true,
+      message: `Medical summary generated successfully (${wordCount} words in ${processingTime}ms)`,
+      data: responseData
+    }
+
+  } catch (error) {
+    const processingTime = Date.now() - startTime
+    console.error("❌ Medical summary generation failed:", error)
+    
+    if (error instanceof OpenAIError) {
+      return {
+        isSuccess: false,
+        message: `Medical summary service error: ${error.message}`
+      }
+    }
+
+    return {
+      isSuccess: false,
+      message: "Medical summary service temporarily unavailable"
     }
   }
 } 
